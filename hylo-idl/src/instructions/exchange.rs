@@ -20,10 +20,10 @@ pub fn mint_stablecoin(
 ) -> Instruction {
   let accounts = accounts::MintStablecoin {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     fee_auth: pda::fee_auth(lst_mint),
     vault_auth: pda::vault_auth(lst_mint),
-    stablecoin_auth: *pda::HYUSD_AUTH,
+    stablecoin_auth: pda::HYUSD_AUTH,
     fee_vault: pda::fee_vault(lst_mint),
     lst_vault: pda::vault(lst_mint),
     lst_header: pda::lst_header(lst_mint),
@@ -35,7 +35,7 @@ pub fn mint_stablecoin(
     token_program: TOKEN_PROGRAM_ID,
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
     system_program: system_program::ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -53,10 +53,10 @@ pub fn mint_levercoin(
 ) -> Instruction {
   let accounts = accounts::MintLevercoin {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     fee_auth: pda::fee_auth(lst_mint),
     vault_auth: pda::vault_auth(lst_mint),
-    levercoin_auth: *pda::XSOL_AUTH,
+    levercoin_auth: pda::XSOL_AUTH,
     fee_vault: pda::fee_vault(lst_mint),
     lst_vault: pda::vault(lst_mint),
     lst_header: pda::lst_header(lst_mint),
@@ -69,7 +69,7 @@ pub fn mint_levercoin(
     token_program: TOKEN_PROGRAM_ID,
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
     system_program: system_program::ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -87,7 +87,7 @@ pub fn redeem_stablecoin(
 ) -> Instruction {
   let accounts = accounts::RedeemStablecoin {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     fee_auth: pda::fee_auth(lst_mint),
     vault_auth: pda::vault_auth(lst_mint),
     fee_vault: pda::fee_vault(lst_mint),
@@ -101,7 +101,7 @@ pub fn redeem_stablecoin(
     system_program: system_program::ID,
     token_program: TOKEN_PROGRAM_ID,
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -119,7 +119,7 @@ pub fn redeem_levercoin(
 ) -> Instruction {
   let accounts = accounts::RedeemLevercoin {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     fee_auth: pda::fee_auth(lst_mint),
     vault_auth: pda::vault_auth(lst_mint),
     fee_vault: pda::fee_vault(lst_mint),
@@ -134,7 +134,7 @@ pub fn redeem_levercoin(
     system_program: system_program::ID,
     token_program: TOKEN_PROGRAM_ID,
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
 
@@ -152,18 +152,18 @@ pub fn swap_stable_to_lever(
 ) -> Instruction {
   let accounts = accounts::SwapStableToLever {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     sol_usd_pyth_feed: pda::SOL_USD_PYTH_FEED,
     stablecoin_mint: HYUSD,
-    stablecoin_auth: *pda::HYUSD_AUTH,
+    stablecoin_auth: pda::HYUSD_AUTH,
     fee_auth: pda::fee_auth(HYUSD),
     fee_vault: pda::fee_vault(HYUSD),
     user_stablecoin_ta: pda::hyusd_ata(user),
     levercoin_mint: XSOL,
-    levercoin_auth: *pda::XSOL_AUTH,
+    levercoin_auth: pda::XSOL_AUTH,
     user_levercoin_ta: pda::xsol_ata(user),
     token_program: TOKEN_PROGRAM_ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
 
@@ -181,18 +181,18 @@ pub fn swap_lever_to_stable(
 ) -> Instruction {
   let accounts = accounts::SwapLeverToStable {
     user,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     sol_usd_pyth_feed: pda::SOL_USD_PYTH_FEED,
     stablecoin_mint: HYUSD,
-    stablecoin_auth: *pda::HYUSD_AUTH,
+    stablecoin_auth: pda::HYUSD_AUTH,
     fee_auth: pda::fee_auth(HYUSD),
     fee_vault: pda::fee_vault(HYUSD),
     user_stablecoin_ta: pda::hyusd_ata(user),
     levercoin_mint: XSOL,
-    levercoin_auth: *pda::XSOL_AUTH,
+    levercoin_auth: pda::XSOL_AUTH,
     user_levercoin_ta: pda::xsol_ata(user),
     token_program: TOKEN_PROGRAM_ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -212,10 +212,10 @@ pub fn initialize_protocol(
   let accounts = accounts::InitializeProtocol {
     admin,
     upgrade_authority,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     treasury,
     system_program: system_program::ID,
-    program_data: *pda::EXCHANGE_PROGRAM_DATA,
+    program_data: pda::EXCHANGE_PROGRAM_DATA,
     hylo_exchange: hylo_exchange::ID,
   };
   Instruction {
@@ -229,9 +229,9 @@ pub fn initialize_protocol(
 pub fn initialize_mints(admin: Pubkey) -> Instruction {
   let accounts = accounts::InitializeMints {
     admin,
-    hylo: *pda::HYLO,
-    stablecoin_auth: *pda::HYUSD_AUTH,
-    levercoin_auth: *pda::XSOL_AUTH,
+    hylo: pda::HYLO,
+    stablecoin_auth: pda::HYUSD_AUTH,
+    levercoin_auth: pda::XSOL_AUTH,
     stablecoin_mint: HYUSD,
     levercoin_mint: XSOL,
     stablecoin_metadata: metadata(HYUSD),
@@ -253,8 +253,8 @@ pub fn initialize_mints(admin: Pubkey) -> Instruction {
 pub fn initialize_lst_registry(slot: u64, admin: Pubkey) -> Instruction {
   let accounts = accounts::InitializeLstRegistry {
     admin,
-    hylo: *pda::HYLO,
-    registry_auth: *pda::LST_REGISTRY_AUTH,
+    hylo: pda::HYLO,
+    registry_auth: pda::LST_REGISTRY_AUTH,
     lst_registry: pda::new_lst_registry(slot),
     lut_program: address_lookup_table::ID,
     system_program: system_program::ID,
@@ -274,8 +274,8 @@ pub fn initialize_lst_registry_calculators(
 ) -> Instruction {
   let accounts = accounts::InitializeLstRegistryCalculators {
     admin,
-    hylo: *pda::HYLO,
-    lst_registry_auth: *pda::LST_REGISTRY_AUTH,
+    hylo: pda::HYLO,
+    lst_registry_auth: pda::LST_REGISTRY_AUTH,
     lst_registry,
     lut_program: address_lookup_table::ID,
     system_program: system_program::ID,
@@ -302,11 +302,11 @@ pub fn register_lst(
 ) -> Instruction {
   let accounts = accounts::RegisterLst {
     admin,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     lst_header: pda::lst_header(lst_mint),
     fee_auth: pda::fee_auth(lst_mint),
     vault_auth: pda::vault_auth(lst_mint),
-    registry_auth: *pda::LST_REGISTRY_AUTH,
+    registry_auth: pda::LST_REGISTRY_AUTH,
     fee_vault: pda::fee_vault(lst_mint),
     lst_vault: pda::vault(lst_mint),
     lst_mint,
@@ -320,7 +320,7 @@ pub fn register_lst(
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
     token_program: TOKEN_PROGRAM_ID,
     system_program: system_program::ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   let args = args::RegisterLst {};
@@ -338,8 +338,8 @@ pub fn update_oracle_conf_tolerance(
 ) -> Instruction {
   let accounts = accounts::UpdateOracleConfTolerance {
     admin,
-    hylo: *pda::HYLO,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    hylo: pda::HYLO,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -356,8 +356,8 @@ pub fn update_sol_usd_oracle(
 ) -> Instruction {
   let accounts = accounts::UpdateSolUsdOracle {
     admin,
-    hylo: *pda::HYLO,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    hylo: pda::HYLO,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -374,8 +374,8 @@ pub fn update_stability_pool(
 ) -> Instruction {
   let accounts = accounts::UpdateStabilityPool {
     admin,
-    hylo: *pda::HYLO,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    hylo: pda::HYLO,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   Instruction {
@@ -393,18 +393,18 @@ pub fn harvest_yield(
 ) -> Instruction {
   let accounts = accounts::HarvestYield {
     payer,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     stablecoin_mint: HYUSD,
-    stablecoin_auth: *pda::HYUSD_AUTH,
+    stablecoin_auth: pda::HYUSD_AUTH,
     levercoin_mint: XSOL,
-    levercoin_auth: *pda::XSOL_AUTH,
+    levercoin_auth: pda::XSOL_AUTH,
     stablecoin_fee_auth: pda::fee_auth(HYUSD),
     stablecoin_fee_vault: pda::fee_vault(HYUSD),
     levercoin_fee_auth: pda::fee_auth(XSOL),
     levercoin_fee_vault: pda::fee_vault(XSOL),
-    stablecoin_pool: *pda::HYUSD_POOL,
-    levercoin_pool: *pda::XSOL_POOL,
-    pool_auth: *pda::POOL_AUTH,
+    stablecoin_pool: pda::HYUSD_POOL,
+    levercoin_pool: pda::XSOL_POOL,
+    pool_auth: pda::POOL_AUTH,
     sol_usd_pyth_feed: pda::SOL_USD_PYTH_FEED,
     hylo_stability_pool: hylo_stability_pool::ID,
     lst_registry,
@@ -412,7 +412,7 @@ pub fn harvest_yield(
     associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
     token_program: TOKEN_PROGRAM_ID,
     system_program: system_program::ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   let args = args::HarvestYield {};
@@ -431,10 +431,10 @@ pub fn update_lst_prices(
 ) -> Instruction {
   let accounts = accounts::UpdateLstPrices {
     payer,
-    hylo: *pda::HYLO,
+    hylo: pda::HYLO,
     lst_registry,
     lut_program: address_lookup_table::ID,
-    event_authority: *pda::EXCHANGE_EVENT_AUTH,
+    event_authority: pda::EXCHANGE_EVENT_AUTH,
     program: hylo_exchange::ID,
   };
   let args = args::UpdateLstPrices {};

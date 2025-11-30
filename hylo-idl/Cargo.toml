@@ -9,8 +9,8 @@ include = ["idls/", "src/"]
 
 [dependencies]
 anchor-lang.workspace = true
+const-crypto.workspace = true
 solana-instruction.workspace = true
-solana-loader-v3-interface.workspace = true
 solana-pubkey.workspace = true
 solana-sdk-ids.workspace = true
 spl-associated-token-account-interface.workspace = true

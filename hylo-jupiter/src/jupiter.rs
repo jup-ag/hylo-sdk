@@ -1,5 +1,4 @@
 use anchor_lang::prelude::{AnchorDeserialize, Pubkey};
-use anchor_spl::token::{Mint, TokenAccount};
 use anyhow::{anyhow, Result};
 use fix::prelude::*;
 use hylo_core::exchange_context::ExchangeContext;
@@ -17,9 +16,10 @@ use jupiter_amm_interface::{
   SwapAndAccountMetas, SwapParams,
 };
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
+use spl_token_interface::state::{Account as TokenAccount, Mint};
 
 use crate::quote;
-use crate::util::account_map_get;
+use crate::util::{account_map_get, account_spl_get};
 
 #[derive(Clone)]
 pub struct HyloJupiterClient {
@@ -153,7 +153,7 @@ impl Amm for HyloJupiterClient {
   }
 
   fn key(&self) -> Pubkey {
-    *pda::HYLO
+    pda::HYLO
   }
 
   fn get_reserve_mints(&self) -> Vec<Pubkey> {
@@ -167,24 +167,24 @@ impl Amm for HyloJupiterClient {
       pda::lst_header(JITOSOL),
       SOL_USD_PYTH_FEED,
       SHYUSD,
-      *pda::HYUSD_POOL,
-      *pda::XSOL_POOL,
-      *pda::POOL_CONFIG,
+      pda::HYUSD_POOL,
+      pda::XSOL_POOL,
+      pda::POOL_CONFIG,
     ]
   }
 
   fn update(&mut self, account_map: &AccountMap) -> Result<()> {
-    let hyusd_mint: Mint = account_map_get(account_map, &HYUSD)?;
-    let xsol_mint: Mint = account_map_get(account_map, &XSOL)?;
+    let hyusd_mint: Mint = account_spl_get(account_map, &HYUSD)?;
+    let xsol_mint: Mint = account_spl_get(account_map, &XSOL)?;
     let jitosol_header: LstHeader =
       account_map_get(account_map, &pda::lst_header(JITOSOL))?;
     let sol_usd: PriceUpdateV2 =
       account_map_get(account_map, &SOL_USD_PYTH_FEED)?;
-    let shyusd_mint: Mint = account_map_get(account_map, &SHYUSD)?;
+    let shyusd_mint: Mint = account_spl_get(account_map, &SHYUSD)?;
     let hyusd_pool: TokenAccount =
-      account_map_get(account_map, &pda::HYUSD_POOL)?;
+      account_spl_get(account_map, &pda::HYUSD_POOL)?;
     let xsol_pool: TokenAccount =
-      account_map_get(account_map, &pda::XSOL_POOL)?;
+      account_spl_get(account_map, &pda::XSOL_POOL)?;
     let pool_config: PoolConfig =
       account_map_get(account_map, &pda::POOL_CONFIG)?;
     self.hyusd_mint = Some(hyusd_mint);

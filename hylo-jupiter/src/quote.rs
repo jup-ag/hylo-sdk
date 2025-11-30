@@ -1,4 +1,3 @@
-use anchor_spl::token::{Mint, TokenAccount};
 use anyhow::{anyhow, Result};
 use fix::num_traits::Zero;
 use fix::prelude::*;
@@ -14,6 +13,7 @@ use hylo_core::stability_pool_math::{
 };
 use jupiter_amm_interface::{ClockRef, Quote};
 use rust_decimal::Decimal;
+use spl_token_interface::state::{Account as TokenAccount, Mint};
 
 use crate::util::fee_pct_decimal;
 
