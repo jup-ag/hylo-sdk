@@ -7,18 +7,12 @@ license.workspace = true
 homepage.workspace = true
 
 [dependencies]
-rust_decimal.workspace = true
-bincode.workspace = true
-hylo-fix.workspace = true
-anyhow.workspace = true
 anchor-lang.workspace = true
-jupiter-amm-interface.workspace = true
+anyhow.workspace = true
 hylo-core = { workspace = true, features = ["offchain"] }
+hylo-fix.workspace = true
+jupiter-amm-interface.workspace = true
 pyth-solana-receiver-sdk.workspace = true
-tokio.workspace = true
-anchor-spl.workspace = true
-anchor-client.workspace = true
-
-[dev-dependencies]
-flaky_test.workspace = true
-hylo-clients.workspace = true
+rust_decimal.workspace = true
+solana-program-pack.workspace = true
+spl-token-interface.workspace = true

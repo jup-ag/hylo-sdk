@@ -1,11 +1,10 @@
-use anchor_client::solana_client::nonblocking::rpc_client::RpcClient;
 use anchor_lang::prelude::{AccountDeserialize, Pubkey};
-use anchor_lang::solana_program::sysvar::clock::{self, Clock};
 use anyhow::{anyhow, Result};
 use fix::prelude::*;
 use fix::typenum::{IsLess, NInt, NonZero, Unsigned, U20};
-use jupiter_amm_interface::{AccountMap, AmmContext, ClockRef};
+use jupiter_amm_interface::AccountMap;
 use rust_decimal::Decimal;
+use solana_program_pack::{IsInitialized, Pack};
 
 /// Computes fee percentage in Jupiter's favored `Decimal` type.
 ///
@@ -42,35 +41,13 @@ pub fn account_map_get<A: AccountDeserialize>(
   Ok(out)
 }
 
-/// Calls RPC to load given accounts into a map.
-///
-/// # Errors
-/// * RPC fails
-/// * One of the accounts is missing
-pub async fn load_account_map(
-  client: &RpcClient,
-  pubkeys: &[Pubkey],
-) -> Result<AccountMap> {
-  let accounts = client.get_multiple_accounts(pubkeys).await?;
-  pubkeys
-    .iter()
-    .zip(accounts)
-    .map(|(pubkey, account)| {
-      account
-        .ok_or_else(|| anyhow!("Account not found: {pubkey}"))
-        .map(|acc| (*pubkey, acc))
-    })
-    .collect::<Result<AccountMap>>()
-}
-
-/// Loads Solana clock information from RPC.
-///
-/// # Errors
-/// * RPC fails
-/// * Deserialization fails
-pub async fn load_amm_context(client: &RpcClient) -> Result<AmmContext> {
-  let clock_account = client.get_account(&clock::ID).await?;
-  let clock: Clock = bincode::deserialize(&clock_account.data)?;
-  let clock_ref = ClockRef::from(clock);
-  Ok(AmmContext { clock_ref })
+pub fn account_spl_get<A: Pack + IsInitialized>(
+  account_map: &AccountMap,
+  key: &Pubkey,
+) -> Result<A> {
+  let account = account_map
+    .get(key)
+    .ok_or(anyhow!("Account not found {key}"))?;
+  let out = A::unpack(&account.data.as_slice())?;
+  Ok(out)
 }

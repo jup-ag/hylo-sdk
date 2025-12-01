@@ -9,7 +9,7 @@ homepage.workspace = true
 [dependencies]
 hylo-fix.workspace = true
 anchor-lang.workspace = true
-anchor-spl.workspace = true
+spl-token-interface.workspace = true
 pyth-solana-receiver-sdk.workspace = true
 jupiter-amm-interface = { workspace = true, optional = true }
 hylo-idl = { workspace = true, optional = true }
@@ -21,4 +21,3 @@ offchain = ["dep:hylo-idl", "dep:jupiter-amm-interface"]
 
 [dev-dependencies]
 proptest.workspace = true
-flaky_test.workspace = true

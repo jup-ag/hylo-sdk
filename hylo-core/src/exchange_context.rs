@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
 use fix::prelude::*;
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
+use spl_token_interface::state::Mint;
 
 use crate::conversion::{Conversion, SwapConversion};
 use crate::error::CoreError::{
