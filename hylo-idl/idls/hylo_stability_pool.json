@@ -2582,8 +2582,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "pool_config",
@@ -3096,8 +3095,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "pool_config",

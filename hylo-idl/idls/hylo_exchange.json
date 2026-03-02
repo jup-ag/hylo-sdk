@@ -1147,8 +1147,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
@@ -1576,8 +1575,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
@@ -1989,8 +1987,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
@@ -2396,8 +2393,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
@@ -3183,8 +3179,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
@@ -3982,8 +3977,7 @@
       "accounts": [
         {
           "name": "user",
-          "writable": true,
-          "signer": true
+          "writable": true
         },
         {
           "name": "hylo",
