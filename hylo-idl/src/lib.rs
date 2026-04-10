@@ -1,8 +1,9 @@
 #![allow(clippy::pub_underscore_fields)]
 
-extern crate anchor_lang;
+pub extern crate anchor_lang;
 
 mod codegen {
+  pub use anchor_lang;
   anchor_lang::declare_program!(hylo_exchange);
   anchor_lang::declare_program!(hylo_stability_pool);
 }

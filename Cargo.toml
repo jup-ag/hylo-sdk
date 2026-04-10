@@ -9,19 +9,26 @@ license = "MPL-2.0"
 homepage = "https://hylo.so"
 
 [workspace.dependencies]
-anchor-lang = "=0.31.1"
-anchor-spl = "=0.31.1"
+anchor-client = "1.0.0"
+anchor-lang = "1.0.0"
+anchor-spl = "1.0.0"
 anyhow = "1.0.98"
 hylo-core = { version = "0.4.1", path = "hylo-core" }
-hylo-fix = "0.4.2"
+hylo-fix = { git = "https://github.com/jup-ag/hylo-fix.git", rev = "b7d190fe371a6afdadeda3a668cfc3422af1837d" }
 hylo-idl = { version = "0.4.1", path = "hylo-idl" }
-jupiter-amm-interface = "0.6.1"
-mpl-token-metadata = "5.1.1"
+jupiter-amm-interface = { version = ">=1.0.0-beta.0, <2" }
+mpl-token-metadata = "=5.1.2-alpha.2"
 paste = "1.0.15"
 proptest = "1.5.0"
-pyth-solana-receiver-sdk = "=1.0.1"
+pyth-solana-receiver-sdk = "0.6.1"
 rust_decimal = "1.37.2"
-solana-address-lookup-table-interface = "=2.2.2"
-solana-loader-v3-interface = "5.0.0"
-solana-program-pack = "2.2.1"
-spl-token-interface = "1.0.0"
+solana-address-lookup-table-interface = "3.0.1"
+solana-loader-v3-interface = "6.1.1"
+solana-program-pack = "3.0.0"
+spl-token-interface = "2.0.0"
+
+
+[patch.crates-io]
+pyth-solana-receiver-sdk = { git = "https://github.com/jup-ag/pyth-crosschain.git", rev = "2e59227b9b618277e9dcc49c2182058f38443f98" }
+pyth-sdk = { git = "https://github.com/jup-ag/pyth-sdk-rs.git", rev = "3f7160bec935bf1698b20b1a3ecfa86b9eec6e1b" }
+pyth-sdk-solana = { git = "https://github.com/jup-ag/pyth-sdk-rs.git", rev = "3f7160bec935bf1698b20b1a3ecfa86b9eec6e1b" }
