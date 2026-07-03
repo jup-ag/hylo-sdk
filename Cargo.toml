@@ -1,5 +1,5 @@
 [workspace]
-members = ["hylo-core", "hylo-idl", "hylo-jupiter"]
+members = ["hylo-core", "hylo-idl", "hylo-jupiter", "hylo-idl-v2", "hylo-core-v2", "hylo-quotes-v2"]
 resolver = "2"
 
 [workspace.package]
@@ -13,6 +13,9 @@ anchor-client = "1.0.0"
 anchor-lang = "1.0.0"
 anchor-spl = "1.0.0"
 anyhow = "1.0.98"
+const-crypto = "0.3.0"
+itertools = "0.14.0"
+serde = { version = "1.0.225", features = ["derive"] }
 hylo-core = { version = "0.4.1", path = "hylo-core" }
 hylo-fix = { git = "https://github.com/jup-ag/hylo-fix.git", rev = "b7d190fe371a6afdadeda3a668cfc3422af1837d" }
 hylo-idl = { version = "0.4.1", path = "hylo-idl" }

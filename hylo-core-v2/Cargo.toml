@@ -1,0 +1,25 @@
+[package]
+name = "hylo-core-v2"
+version = "1.0.0"
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+description = "Core protocol data types, math, and utilities (v2)."
+
+[lib]
+name = "hylo_core"
+
+[features]
+default = []
+offchain = ["dep:hylo-idl", "dep:jupiter-amm-interface"]
+shadow = ["hylo-idl?/shadow"]
+
+[dependencies]
+anchor-lang.workspace = true
+anchor-spl.workspace = true
+hylo-fix.workspace = true
+hylo-idl = { package = "hylo-idl-v2", path = "../hylo-idl-v2", optional = true }
+jupiter-amm-interface = { workspace = true, optional = true }
+itertools.workspace = true
+pyth-solana-receiver-sdk.workspace = true
+serde.workspace = true
