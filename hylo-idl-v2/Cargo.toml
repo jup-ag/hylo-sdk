@@ -1,0 +1,24 @@
+[package]
+name = "hylo-idl-v2"
+version = "1.0.0"
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+description = "Protocol IDL definitions (v2 / router)"
+include = ["idls/", "src/"]
+
+[lib]
+name = "hylo_idl"
+
+[features]
+shadow = []
+
+[dependencies]
+anchor-lang.workspace = true
+anchor-spl.workspace = true
+anyhow.workspace = true
+const-crypto.workspace = true
+hylo-fix.workspace = true
+mpl-token-metadata.workspace = true
+solana-address-lookup-table-interface.workspace = true
+solana-loader-v3-interface.workspace = true
