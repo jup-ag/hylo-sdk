@@ -71,7 +71,7 @@ pub fn initialize_lp_token_mint(
     lp_token_auth: pda::SHYUSD_AUTH,
     lp_token_mint: SHYUSD::MINT,
     lp_token_metadata: pda::metadata(SHYUSD::MINT),
-    metadata_program: mpl_token_metadata::ID,
+    metadata_program: pda::METADATA_PROGRAM,
     token_program: token::ID,
     rent: rent::ID,
     system_program: system_program::ID,

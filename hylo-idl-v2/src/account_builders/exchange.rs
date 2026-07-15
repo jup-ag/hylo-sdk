@@ -181,7 +181,7 @@ pub fn register_exo(
     fee_vault: pda::ata(fee_auth, collateral_mint),
     levercoin_metadata: pda::metadata(levercoin_mint),
     exo_usd_pyth_feed,
-    metadata_program: mpl_token_metadata::ID,
+    metadata_program: pda::METADATA_PROGRAM,
     token_program: token::ID,
     associated_token_program: associated_token::ID,
     rent: rent::ID,
