@@ -134,7 +134,7 @@ pub fn initialize_mints(
     levercoin_mint: XSOL::MINT,
     stablecoin_metadata: metadata(HYUSD::MINT),
     levercoin_metadata: metadata(XSOL::MINT),
-    metadata_program: mpl_token_metadata::ID,
+    metadata_program: pda::METADATA_PROGRAM,
     token_program: token::ID,
     associated_token_program: associated_token::ID,
     rent: rent::ID,

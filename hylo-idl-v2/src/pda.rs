@@ -8,6 +8,12 @@ use crate::exchange::types::AddressField;
 use crate::tokens::{TokenMint, HYUSD, SHYUSD, USDC, XSOL};
 use crate::{earn_pool, exchange};
 
+/// Metaplex Token Metadata program, inlined to avoid a direct
+/// `mpl-token-metadata` dependency (which pins an `mpl` version that conflicts
+/// with downstream consumers). This is the canonical program id.
+pub const METADATA_PROGRAM: Pubkey =
+  pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
 macro_rules! pda {
   ($program_id:expr, $base:expr) => {{
     let (key, _bump) = ed25519::derive_program_address(
@@ -65,10 +71,10 @@ pub const fn metadata(mint: Pubkey) -> Pubkey {
   let (key, _bump) = ed25519::derive_program_address(
     &[
       b"metadata",
-      mpl_token_metadata::ID.as_array(),
+      METADATA_PROGRAM.as_array(),
       mint.as_array(),
     ],
-    mpl_token_metadata::ID.as_array(),
+    METADATA_PROGRAM.as_array(),
   );
   Pubkey::new_from_array(key)
 }

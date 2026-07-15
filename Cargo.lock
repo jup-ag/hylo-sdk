@@ -1451,7 +1451,6 @@ dependencies = [
  "anyhow",
  "const-crypto",
  "hylo-fix",
- "mpl-token-metadata",
  "solana-address-lookup-table-interface",
  "solana-loader-v3-interface",
 ]
