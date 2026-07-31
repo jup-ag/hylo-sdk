@@ -10,7 +10,6 @@ description = "Carved quote computation for Hylo protocol (v2)."
 name = "hylo_quotes"
 
 [dependencies]
-anchor-client.workspace = true
 anchor-lang.workspace = true
 anchor-spl.workspace = true
 anyhow.workspace = true
