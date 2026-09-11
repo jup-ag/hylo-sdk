@@ -29,8 +29,15 @@ use crate::{Exo, LST};
 pub struct UsdcExchangeState {
   /// USDC/USD oracle price range
   pub usdc_usd_price: hylo_core::pyth::PriceRange<N9>,
-  /// Swap fee extracted on USDC operations
-  pub swap_fee: UFix64<N4>,
+  /// Fee extracted when minting stablecoin from USDC
+  pub mint_fee: UFix64<N4>,
+  /// Fee extracted when redeeming stablecoin for USDC.
+  ///
+  /// Split from `mint_fee` on-chain: the single `swap_fee` this used to read
+  /// is now `mint_fee` (currently 0), and the real redeem fee sits in bytes
+  /// the older layout called `_reserved`. Reading only `mint_fee` quoted
+  /// redemptions 20bps light.
+  pub redeem_fee: UFix64<N4>,
 }
 
 impl UsdcExchangeState {

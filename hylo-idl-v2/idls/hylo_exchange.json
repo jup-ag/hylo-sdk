@@ -20487,7 +20487,7 @@
     {
       "name": "StablecoinFees",
       "docs": [
-        "**Deprecated** — retained only for `Hylo` account deserialization."
+        "**Deprecated** \u2014 retained only for `Hylo` account deserialization."
       ],
       "type": {
         "kind": "struct",
@@ -21080,7 +21080,7 @@
             "type": "u8"
           },
           {
-            "name": "swap_fee",
+            "name": "mint_fee",
             "type": {
               "defined": {
                 "name": "UFixValue64"
@@ -21112,11 +21112,27 @@
             "type": "bool"
           },
           {
+            "name": "par_tolerance",
+            "type": {
+              "defined": {
+                "name": "ParTolerance"
+              }
+            }
+          },
+          {
+            "name": "redeem_fee",
+            "type": {
+              "defined": {
+                "name": "UFixValue64"
+              }
+            }
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
                 "u8",
-                127
+                109
               ]
             }
           }
@@ -21217,6 +21233,25 @@
           },
           {
             "name": "fee",
+            "type": {
+              "defined": {
+                "name": "UFixValue64"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ParTolerance",
+      "docs": [
+        "Maximum distance from par at which an asset settles at face value."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tolerance",
             "type": {
               "defined": {
                 "name": "UFixValue64"

@@ -255,7 +255,8 @@ pub fn build_protocol_state(
   let usdc_oracle = query_pyth_oracle(&clock, &usdc_usd, usdc_oracle_config)?;
   let usdc_exchange_state = UsdcExchangeState {
     usdc_usd_price: usdc_oracle.price_range()?,
-    swap_fee: usdc_pair.swap_fee.try_into()?,
+    mint_fee: usdc_pair.mint_fee.try_into()?,
+    redeem_fee: usdc_pair.redeem_fee.try_into()?,
   };
 
   // Stake pools
