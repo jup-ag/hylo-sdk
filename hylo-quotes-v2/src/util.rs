@@ -3,7 +3,7 @@
 use anchor_lang::prelude::{AccountDeserialize, Pubkey};
 use anyhow::{anyhow, Context, Result};
 use fix::num_traits::FromPrimitive;
-use fix::prelude::UFix64;
+use fix::prelude::{FixExt, UFix64};
 use fix::typenum::Integer;
 use hylo_idl::tokens::TokenMint;
 use jupiter_amm_interface::{AccountMap, ClockRef, Quote, SwapMode, SwapParams};
@@ -114,7 +114,9 @@ use hylo_core::idl::tokens::{
   StakePool, CBBTC, HYLOSOL, HYPE, HYUSD, JITOSOL, SHYUSD, XSOL,
 };
 use hylo_core::lst::stake_pool::SplStakePool;
-use hylo_core::pyth::{query_pyth_oracle, OracleConfig, HYPE_USD, SOL_USD};
+use hylo_core::pyth::{
+  query_pyth_oracle, OracleConfig, PriceRange, HYPE_USD, SOL_USD,
+};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 use crate::protocol_state::UsdcExchangeState;
@@ -148,6 +150,32 @@ pub fn accounts_to_update() -> Vec<Pubkey> {
     pda::USDC_PAIR,
     pda::USDC_USD_PYTH_FEED,
   ]
+}
+
+/// Snaps a USDC/USD range to exactly par when it sits inside the pair's par
+/// tolerance.
+///
+/// The exchange treats USDC as worth exactly $1 while the oracle stays within
+/// `par_tolerance`, rather than pricing off the confidence interval. Quoting
+/// off the raw range instead put us a few bps below the on-chain result on
+/// both USDC legs.
+fn clamp_usdc_to_par(
+  range: PriceRange<N9>,
+  tolerance: UFix64<N9>,
+) -> PriceRange<N9> {
+  let par = UFix64::<N9>::one();
+  let within = |p: UFix64<N9>| {
+    let delta = if p >= par { p - par } else { par - p };
+    delta <= tolerance
+  };
+  if within(range.lower) && within(range.upper) {
+    PriceRange {
+      lower: par,
+      upper: par,
+    }
+  } else {
+    range
+  }
 }
 
 /// Builds a full [`ProtocolState`] from a Jupiter `AccountMap`.
@@ -254,7 +282,10 @@ pub fn build_protocol_state(
   );
   let usdc_oracle = query_pyth_oracle(&clock, &usdc_usd, usdc_oracle_config)?;
   let usdc_exchange_state = UsdcExchangeState {
-    usdc_usd_price: usdc_oracle.price_range()?,
+    usdc_usd_price: clamp_usdc_to_par(
+      usdc_oracle.price_range()?,
+      usdc_pair.par_tolerance.tolerance.try_into()?,
+    ),
     mint_fee: usdc_pair.mint_fee.try_into()?,
     redeem_fee: usdc_pair.redeem_fee.try_into()?,
   };
