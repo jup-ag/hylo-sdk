@@ -105,16 +105,16 @@ pub fn validate_swap_params<'a>(
 use std::sync::Arc;
 
 use anchor_spl::token::{Mint, TokenAccount};
-use fix::prelude::N8;
+use fix::prelude::{N8, N9};
 use hylo_core::exchange_context::ExoExchangeContext;
 use hylo_core::idl::earn_pool::accounts::PoolConfig;
 use hylo_core::idl::exchange::accounts::{ExoPair, Hylo, LstHeader, UsdcPair};
 use hylo_core::idl::pda;
 use hylo_core::idl::tokens::{
-  StakePool, CBBTC, HYLOSOL, HYUSD, JITOSOL, SHYUSD, XSOL,
+  StakePool, CBBTC, HYLOSOL, HYPE, HYUSD, JITOSOL, SHYUSD, XSOL,
 };
 use hylo_core::lst::stake_pool::SplStakePool;
-use hylo_core::pyth::{query_pyth_oracle, OracleConfig, SOL_USD};
+use hylo_core::pyth::{query_pyth_oracle, OracleConfig, HYPE_USD, SOL_USD};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 use crate::protocol_state::UsdcExchangeState;
@@ -141,6 +141,10 @@ pub fn accounts_to_update() -> Vec<Pubkey> {
     pda::exo_vault(CBBTC::MINT),
     pda::exo_levercoin_mint(CBBTC::MINT),
     pda::BTC_USD_PYTH_FEED,
+    pda::exo_pair(HYPE::MINT),
+    pda::exo_vault(HYPE::MINT),
+    pda::exo_levercoin_mint(HYPE::MINT),
+    HYPE_USD.address,
     pda::USDC_PAIR,
     pda::USDC_USD_PYTH_FEED,
   ]
@@ -211,6 +215,38 @@ pub fn build_protocol_state(
     .context("ExoExchangeContext::load")?,
   );
 
+  // HYPE exo context. HYPE is already N9, so the vault balance is used as-is:
+  // copying the cbBTC `checked_convert` here would convert cleanly and
+  // misprice by 10x.
+  let hype_exo_pair: ExoPair =
+    account_map_get(account_map, &pda::exo_pair(HYPE::MINT))?;
+  let hype_vault: TokenAccount =
+    account_map_get(account_map, &pda::exo_vault(HYPE::MINT))?;
+  let xhype_mint: Mint =
+    account_map_get(account_map, &pda::exo_levercoin_mint(HYPE::MINT))?;
+  let hype_usd: PriceUpdateV2 =
+    account_map_get(account_map, &HYPE_USD.address)?;
+  let hype_oracle_config = OracleConfig::new(
+    hype_exo_pair.oracle_interval_secs,
+    hype_exo_pair.oracle_conf_tolerance.try_into()?,
+  );
+  let hype_exchange_context = Arc::new(
+    ExoExchangeContext::load(
+      clock.clone(),
+      UFix64::<N9>::new(hype_vault.amount),
+      hype_exo_pair.stablecoin_mint_threshold.try_into()?,
+      hype_oracle_config,
+      hype_exo_pair.levercoin_fees.into(),
+      &hype_usd,
+      hype_exo_pair.virtual_stablecoin.into(),
+      Some(&xhype_mint),
+      hype_exo_pair.sell_curve_config.into(),
+      hype_exo_pair.buy_curve_config.into(),
+      hype_exo_pair.levercoin_market_cap_limit.try_into()?,
+    )
+    .context("ExoExchangeContext::load (HYPE)")?,
+  );
+
   // USDC exchange state
   let usdc_oracle_config = OracleConfig::new(
     usdc_pair.oracle_interval_secs,
@@ -245,6 +281,7 @@ pub fn build_protocol_state(
     xsol_pool,
     &sol_usd,
     cbbtc_exchange_context,
+    hype_exchange_context,
     usdc_exchange_state,
     jitosol_stake_pool,
     hylosol_stake_pool,

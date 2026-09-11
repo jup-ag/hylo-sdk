@@ -235,6 +235,9 @@ pub const USDC_USD_PYTH_FEED: Pubkey =
 pub const BTC_USD_PYTH_FEED: Pubkey =
   pubkey!("APgzQGGdv2qCgBkX6aHVkrGePtBVDDg68GiqaM7rmtf5");
 
+pub const HYPE_USD_PYTH_FEED: Pubkey =
+  pubkey!("9dAoWJ5ua81c43ntstN4xyg3Uo9Zt93x7BjCxSc27V6V");
+
 pub const DEAD: Pubkey = pda!(exchange::ID, exchange::constants::DEAD);
 
 pub const EXCHANGE_EVENT_AUTHORITY: Pubkey = event_auth(exchange::ID);

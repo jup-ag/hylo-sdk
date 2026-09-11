@@ -19,10 +19,10 @@ use hylo_core::lst::stake_pool::SplStakePool;
 use hylo_core::lst::total_sol_cache::TotalSolCache;
 use hylo_core::pyth::OracleConfig;
 use hylo_core::solana_clock::SolanaClock;
-use hylo_idl::tokens::{TokenMint, HYLOSOL, JITOSOL};
+use hylo_idl::tokens::{TokenMint, CBBTC, HYLOSOL, HYPE, JITOSOL};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
-use crate::LST;
+use crate::{Exo, LST};
 
 /// USDC exchange state for stablecoin mint/redeem.
 #[derive(Clone)]
@@ -82,6 +82,9 @@ pub struct ProtocolState<C: SolanaClock> {
   /// cbBTC exo exchange context
   pub cbbtc_exchange_context: Arc<ExoExchangeContext<C>>,
 
+  /// HYPE exo exchange context
+  pub hype_exchange_context: Arc<ExoExchangeContext<C>>,
+
   /// USDC exchange state
   pub usdc_exchange_state: UsdcExchangeState,
 
@@ -111,6 +114,7 @@ impl<C: SolanaClock> ProtocolState<C> {
     xsol_pool: TokenAccount,
     sol_usd: &PriceUpdateV2,
     cbbtc_exchange_context: Arc<ExoExchangeContext<C>>,
+    hype_exchange_context: Arc<ExoExchangeContext<C>>,
     usdc_exchange_state: UsdcExchangeState,
     jitosol_stake_pool: SplStakePool,
     hylosol_stake_pool: SplStakePool,
@@ -148,6 +152,7 @@ impl<C: SolanaClock> ProtocolState<C> {
       fetched_at,
       lst_swap_config,
       cbbtc_exchange_context,
+      hype_exchange_context,
       usdc_exchange_state,
       jitosol_stake_pool,
       hylosol_stake_pool,
@@ -181,6 +186,18 @@ impl<C: SolanaClock> ProtocolState<C> {
   #[must_use]
   pub fn cbbtc_exchange_context(&self) -> &ExoExchangeContext<C> {
     &self.cbbtc_exchange_context
+  }
+
+  /// Selects the exo exchange context for a given collateral.
+  ///
+  /// # Errors
+  /// * Collateral has no exo pair registered in this snapshot
+  pub fn exo_exchange_context<E: Exo>(&self) -> Result<&ExoExchangeContext<C>> {
+    match E::MINT {
+      CBBTC::MINT => Ok(&self.cbbtc_exchange_context),
+      HYPE::MINT => Ok(&self.hype_exchange_context),
+      _ => Err(anyhow!("No exo pair registered for mint {}", E::MINT)),
+    }
   }
 
   #[must_use]

@@ -39,6 +39,14 @@ pub const BTC_USD: PythFeed = PythFeed {
   address: pubkey!("APgzQGGdv2qCgBkX6aHVkrGePtBVDDg68GiqaM7rmtf5"),
 };
 
+pub const HYPE_USD: PythFeed = PythFeed {
+  feed_id: [
+    66, 121, 227, 28, 195, 105, 187, 204, 47, 175, 2, 43, 56, 43, 8, 14, 50,
+    168, 230, 137, 255, 32, 251, 197, 48, 210, 166, 3, 235, 108, 217, 139,
+  ],
+  address: pubkey!("9dAoWJ5ua81c43ntstN4xyg3Uo9Zt93x7BjCxSc27V6V"),
+};
+
 pub const USDC_USD: PythFeed = PythFeed {
   feed_id: [
     234, 160, 32, 198, 28, 196, 121, 113, 40, 19, 70, 28, 225, 83, 137, 74,
