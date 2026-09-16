@@ -1,9 +1,16 @@
-use anchor_lang::prelude::Pubkey;
+use anchor_lang::prelude::{pubkey, Pubkey};
 use const_crypto::ed25519;
 #[cfg(feature = "offchain")]
 use hylo_idl::tokens::{TokenMint, CBBTC, HYPE, ONYC, PST, WETH, ZEC};
 use pyth_solana_receiver_sdk::price_update::FeedId;
-use pyth_solana_receiver_sdk::PYTH_PUSH_ORACLE_ID;
+
+/// Pyth Pro push oracle. Upstream reads this from `pyth-solana-receiver-sdk`
+/// under its `pro-compatible` feature; the receiver SDK this fork builds
+/// against predates that feature and only knows the legacy push oracle, whose
+/// id would derive the legacy feed accounts rather than the ones the exchange
+/// is configured with.
+const PYTH_PUSH_ORACLE_ID: Pubkey =
+  pubkey!("pyt2F414BA6dPttK6RddPZUdHfapoBN24GL5wbrPCou");
 
 pub struct PythFeed {
   pub feed_id: FeedId,
