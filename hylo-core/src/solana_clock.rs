@@ -1,9 +1,4 @@
-#[cfg(feature = "offchain")]
-use std::sync::atomic::Ordering;
-
 use anchor_lang::prelude::Clock;
-#[cfg(feature = "offchain")]
-use hylo_jupiter_amm_interface::ClockRef;
 
 /// Abstracts the concept of Solana's onchain clock.
 pub trait SolanaClock {
@@ -33,28 +28,5 @@ impl SolanaClock for Clock {
 
   fn unix_timestamp(&self) -> i64 {
     self.unix_timestamp
-  }
-}
-
-#[cfg(feature = "offchain")]
-impl SolanaClock for ClockRef {
-  fn slot(&self) -> u64 {
-    self.slot.load(Ordering::Relaxed)
-  }
-
-  fn epoch_start_timestamp(&self) -> i64 {
-    self.epoch_start_timestamp.load(Ordering::Relaxed)
-  }
-
-  fn epoch(&self) -> u64 {
-    self.epoch.load(Ordering::Relaxed)
-  }
-
-  fn leader_schedule_epoch(&self) -> u64 {
-    self.leader_schedule_epoch.load(Ordering::Relaxed)
-  }
-
-  fn unix_timestamp(&self) -> i64 {
-    self.unix_timestamp.load(Ordering::Relaxed)
   }
 }

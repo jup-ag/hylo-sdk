@@ -5,31 +5,24 @@ edition.workspace = true
 description = "Quote computation and execution layer for Hylo protocol"
 license.workspace = true
 homepage.workspace = true
+# Jupiter fork: the integration tests drive an RpcClient through hylo-clients,
+# which this workspace does not build.
+autotests = false
 
 [features]
-shadow = ["hylo-idl/shadow", "hylo-core/shadow", "hylo-clients/shadow"]
+shadow = ["hylo-idl/shadow", "hylo-core/shadow"]
 
 [dependencies]
-anchor-client.workspace = true
 anchor-lang.workspace = true
 anchor-spl.workspace = true
 anyhow.workspace = true
-async-trait.workspace = true
 bincode.workspace = true
-hylo-clients.workspace = true
 hylo-core = { workspace = true, features = ["offchain"] }
 hylo-fix.workspace = true
 hylo-idl.workspace = true
 pyth-solana-receiver-sdk.workspace = true
 serde.workspace = true
-solana-rpc-client.workspace = true
-tokio.workspace = true
-
-[dev-dependencies]
-base64.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-test-context.workspace = true
+solana-account.workspace = true
 
 [lints]
 workspace = true

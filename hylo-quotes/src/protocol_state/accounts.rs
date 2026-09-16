@@ -2,9 +2,8 @@
 
 use std::convert::TryFrom;
 
-use anchor_client::solana_sdk::account::Account;
 use anchor_lang::prelude::Pubkey;
-use anchor_lang::solana_program::sysvar;
+use anchor_lang::solana_program::clock;
 use anyhow::{anyhow, ensure, Context, Result};
 use hylo_core::error::CoreError;
 use hylo_core::pyth::PythOracle;
@@ -14,6 +13,7 @@ use hylo_idl::tokens::{
   USDC, XSOL,
 };
 use serde::{Deserialize, Serialize};
+use solana_account::Account;
 
 /// Extracts the fetched account at `index`, named `name` in errors.
 ///
@@ -125,7 +125,7 @@ impl ProtocolAccounts {
     pda::POOL_CONFIG,
     pda::HYUSD_POOL,
     hylo_core::pyth::SOL_USD.address,
-    sysvar::clock::ID,
+    clock::sysvar::ID,
     pda::exo_pair(CBBTC::MINT),
     pda::exo_vault(CBBTC::MINT),
     pda::exo_levercoin_mint(CBBTC::MINT),
@@ -159,7 +159,7 @@ impl ProtocolAccounts {
       pda::HYLO,
       XSOL::MINT,
       hylo_core::pyth::SOL_USD.address,
-      sysvar::clock::ID,
+      clock::sysvar::ID,
     ]
   }
 
@@ -173,7 +173,7 @@ impl ProtocolAccounts {
       pda::exo_vault(E::MINT),
       pda::exo_levercoin_mint(E::MINT),
       E::FEED.address,
-      sysvar::clock::ID,
+      clock::sysvar::ID,
     ]
   }
 

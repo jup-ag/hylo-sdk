@@ -1,12 +1,11 @@
 [workspace]
-members = [
-    "hylo-clients",
-    "hylo-core",
-    "hylo-idl",
-    "hylo-jupiter",
-    "hylo-quotes",
-    "hylo-stats",
-]
+# Jupiter fork: only the crates jupiter-core-rs consumes are built. hylo-clients,
+# hylo-jupiter and hylo-stats stay on disk untouched as reference (and so that
+# upstream merges still apply to them), but they pin anchor-client and
+# solana-rpc-client 2.x, which cannot coexist with the Solana 4 graph these
+# crates are built into.
+members = ["hylo-core", "hylo-idl", "hylo-quotes"]
+exclude = ["hylo-clients", "hylo-jupiter", "hylo-stats"]
 resolver = "2"
 
 [workspace.package]
@@ -16,41 +15,26 @@ license = "MPL-2.0"
 homepage = "https://hylo.so"
 
 [workspace.dependencies]
-anchor-client = { version = "=0.32.1", features = ["async"] }
-anchor-lang = "=0.32.1"
-anchor-spl = "=0.32.1"
+# Jupiter fork: anchor 0.32 -> 1, pyth-solana-receiver-sdk 1.2 -> 0.6 (the
+# Pyth Pro push-oracle id it provided under `pro-compatible` is pinned in
+# hylo-core/src/pyth/feeds.rs instead), hylo-fix from the jup-ag fork built
+# against anchor 1, solana-* realigned to the jupiter-core-rs workspace.
+anchor-lang = "1"
+anchor-spl = "1"
 anyhow = "1.0.98"
-async-trait = "0.1.88"
-base64 = "0.22.1"
-const-crypto = "0.3.0"
 bincode = "1.3.3"
-futures = "0.3.31"
-hylo-clients = { version = "2.1.0", path = "hylo-clients" }
+const-crypto = "0.3.0"
 hylo-core = { version = "2.1.0", path = "hylo-core" }
-hylo-fix = "0.8.0"
+hylo-fix = { git = "https://github.com/jup-ag/hylo-fix.git", rev = "4d67fd6b9e8f4bc4e3e7e2a91fd700be37f1a621" }
 hylo-idl = { version = "2.1.0", path = "hylo-idl" }
-hylo-jupiter = { version = "2.1.0", path = "hylo-jupiter" }
 hylo-quotes = { version = "2.1.0", path = "hylo-quotes" }
-hylo-stats = { version = "2.1.0", path = "hylo-stats" }
 itertools = "0.14.0"
-hylo-jupiter-amm-interface = "0.6.0"
 more-asserts = "0.3.1"
-mpl-token-metadata = "5.1.1"
 proptest = "1.5.0"
-pyth-solana-receiver-sdk = { version = "=1.2.0", features = ["pro-compatible"] }
-rust_decimal = "1.37.2"
+pyth-solana-receiver-sdk = "0.6.1"
 serde = "1.0.225"
-serde_json = "1.0.140"
-solana-address-lookup-table-interface = "=2.2.2"
-solana-rpc-client = "=2.3.13"
-solana-rpc-client-api = "=2.3.13"
-test-context = "0.3.0"
-thiserror = "2.0.18"
-solana-loader-v3-interface = "5.0.0"
-solana-transaction-status-client-types = "=2.3.13"
-hylo-squads-multisig = "2.1.0"
-tokio = "1.36.0"
-tokio-test = "0.4"
+solana-account = { version = "4", features = ["serde"] }
+solana-address-lookup-table-interface = "3"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
@@ -59,3 +43,11 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 pedantic = { level = "deny", priority = -1 }
 needless_for_each = "allow"
 type_complexity = "allow"
+
+# Mirrors jupiter-core-rs so a standalone `cargo check` here resolves the same
+# graph. Patches are ignored when these crates are consumed as a dependency.
+[patch.crates-io]
+anchor-lang = { git = "https://github.com/coral-xyz/anchor", rev = "1c58cbc5c1226960e9c87bc4db581680ae303b42" }
+anchor-spl = { git = "https://github.com/coral-xyz/anchor", rev = "1c58cbc5c1226960e9c87bc4db581680ae303b42" }
+pyth-solana-receiver-sdk = { git = "https://github.com/pyth-network/pyth-crosschain.git", rev = "2e59227b9b618277e9dcc49c2182058f38443f98" }
+pythnet-sdk = { git = "https://github.com/pyth-network/pyth-crosschain.git", rev = "2e59227b9b618277e9dcc49c2182058f38443f98" }

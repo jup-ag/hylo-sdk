@@ -1,5 +1,5 @@
 use anchor_lang::prelude::{bpf_loader_upgradeable, pubkey, Pubkey};
-use anchor_spl::associated_token::spl_associated_token_account;
+use anchor_spl::associated_token;
 use anchor_spl::token;
 use const_crypto::ed25519;
 use solana_address_lookup_table_interface::program as address_lookup_table;
@@ -7,6 +7,11 @@ use solana_address_lookup_table_interface::program as address_lookup_table;
 use crate::exchange::types::AddressField;
 use crate::tokens::{TokenMint, HYUSD, SHYUSD, USDC, XSOL};
 use crate::{earn_pool, exchange};
+
+/// Metaplex Token Metadata program, inlined so hylo-idl does not depend on
+/// `mpl-token-metadata` (Jupiter fork).
+pub const METADATA_PROGRAM: Pubkey =
+  pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 macro_rules! pda {
   ($program_id:expr, $base:expr) => {{
@@ -46,7 +51,7 @@ pub const fn mint<const N: usize>(program_id: Pubkey, seed: [u8; N]) -> Pubkey {
 pub const fn ata(auth: Pubkey, mint: Pubkey) -> Pubkey {
   let (key, _bump) = ed25519::derive_program_address(
     &[auth.as_array(), token::ID.as_array(), mint.as_array()],
-    spl_associated_token_account::ID.as_array(),
+    associated_token::ID.as_array(),
   );
   Pubkey::new_from_array(key)
 }
@@ -63,12 +68,8 @@ pub const fn progdata(program_id: Pubkey) -> Pubkey {
 #[must_use]
 pub const fn metadata(mint: Pubkey) -> Pubkey {
   let (key, _bump) = ed25519::derive_program_address(
-    &[
-      b"metadata",
-      mpl_token_metadata::ID.as_array(),
-      mint.as_array(),
-    ],
-    mpl_token_metadata::ID.as_array(),
+    &[b"metadata", METADATA_PROGRAM.as_array(), mint.as_array()],
+    METADATA_PROGRAM.as_array(),
   );
   Pubkey::new_from_array(key)
 }

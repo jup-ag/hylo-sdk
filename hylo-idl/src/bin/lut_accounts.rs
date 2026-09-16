@@ -90,7 +90,7 @@ const LUT_ACCOUNTS: &[Pubkey] = &[
   pda::ata(pda::fee_auth(HYPE::MINT), HYPE::MINT),
   // Standard programs
   token::ID,
-  mpl_token_metadata::ID,
+  pda::METADATA_PROGRAM,
 ];
 
 fn main() {

@@ -19,7 +19,7 @@
 //!
 //! ## Using `ProtocolStateStrategy`
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use hylo_quotes::prelude::*;
 //! use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 //! use std::sync::Arc;
@@ -47,7 +47,7 @@
 //!
 //! ## Using `SimulationStrategy`
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use hylo_clients::prelude::*;
 //! use hylo_quotes::prelude::*;
 //!
@@ -94,30 +94,60 @@
 //! # }
 //! ```
 
+// Jupiter fork: everything that builds transactions or reaches the chain
+// through an RpcClient is gated behind `#[cfg(any())]`, which is never true.
+// The sources stay on disk untouched so upstream merges keep applying, but
+// only `protocol_state` and `token_operation` are compiled.
+#[cfg(any())]
 use anchor_client::solana_sdk::instruction::Instruction;
+#[cfg(any())]
 use anchor_lang::prelude::Pubkey;
+#[cfg(any())]
 use fix::prelude::{UFix64, UFixValue64};
+#[cfg(any())]
 use fix::typenum::Integer;
-use hylo_idl::tokens::{CBBTC, HYLOSOL, HYPE, JITOSOL, ONYC, PST, WETH, ZEC};
+use hylo_idl::tokens::{
+  StakePool, CBBTC, HYLOSOL, HYPE, JITOSOL, ONYC, PST, WETH, ZEC,
+};
 use hylo_idl::with_exo_pairs;
 
+#[cfg(any())]
 pub mod prelude;
 pub mod protocol_state;
+#[cfg(any())]
 mod protocol_state_strategy;
+#[cfg(any())]
 mod quote_metadata;
+#[cfg(any())]
 mod quote_strategy;
+#[cfg(any())]
 mod runtime_quote_strategy;
+#[cfg(any())]
 pub mod simulated_operation;
+#[cfg(any())]
 mod simulation_strategy;
 pub mod token_operation;
 
+#[cfg(any())]
 pub use hylo_clients::util::LST;
+#[cfg(any())]
 pub use protocol_state_strategy::ProtocolStateStrategy;
+#[cfg(any())]
 pub use quote_metadata::{Operation, QuoteMetadata};
+#[cfg(any())]
 pub use quote_strategy::QuoteStrategy;
+#[cfg(any())]
 pub use runtime_quote_strategy::RuntimeQuoteStrategy;
+#[cfg(any())]
 pub use simulated_operation::ComputeUnitInfo;
+#[cfg(any())]
 pub use simulation_strategy::SimulationStrategy;
+
+/// Restates `hylo_clients::util::LST`, since hylo-clients is not built in the
+/// Jupiter fork.
+pub trait LST: StakePool {}
+impl LST for JITOSOL {}
+impl LST for HYLOSOL {}
 
 /// Default buffered compute units for all exchange operations.
 ///
@@ -128,9 +158,11 @@ pub use simulation_strategy::SimulationStrategy;
 ///
 /// In the future, this could be replaced with per-instruction defaults based
 /// on more comprehensive statistical analysis.
+#[cfg(any())]
 pub const DEFAULT_CUS_WITH_BUFFER: u64 = 100_000;
 
 /// Typed executable quote with amounts, instructions, and compute units.
+#[cfg(any())]
 #[derive(Clone, Debug)]
 pub struct ExecutableQuote<In: Integer, Out: Integer, Fee: Integer> {
   pub amount_in: UFix64<In>,
@@ -144,6 +176,7 @@ pub struct ExecutableQuote<In: Integer, Out: Integer, Fee: Integer> {
 }
 
 /// Executable quote with runtime exponent information.
+#[cfg(any())]
 #[derive(Clone, Debug)]
 pub struct ExecutableQuoteValue {
   pub amount_in: UFixValue64,
@@ -156,6 +189,7 @@ pub struct ExecutableQuoteValue {
   pub address_lookup_tables: Vec<Pubkey>,
 }
 
+#[cfg(any())]
 impl<In: Integer, Out: Integer, Fee: Integer>
   From<ExecutableQuote<In, Out, Fee>> for ExecutableQuoteValue
 {
@@ -173,6 +207,7 @@ impl<In: Integer, Out: Integer, Fee: Integer>
   }
 }
 
+#[cfg(any())]
 #[derive(Clone, Debug)]
 pub enum ComputeUnitStrategy {
   /// Estimated compute units based on historical data

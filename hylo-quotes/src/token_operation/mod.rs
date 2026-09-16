@@ -28,6 +28,7 @@ fn past_zero<Exp: Integer>(
 ///
 /// # Errors
 /// * Non-finite or non-positive rate (zero input or output)
+#[allow(dead_code)] // Jupiter fork: only the gated quote strategies call it.
 pub(crate) fn linear_rate<InExp: Integer, OutExp: Integer>(
   in_amount: UFix64<InExp>,
   out_amount: UFix64<OutExp>,

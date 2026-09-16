@@ -3,6 +3,8 @@
 extern crate anchor_lang;
 
 mod codegen {
+  // anchor 1's `declare_program!` reaches anchor_lang through `super::`.
+  pub(crate) use ::anchor_lang;
   #[cfg(not(feature = "shadow"))]
   anchor_lang::declare_program!(hylo_earn_pool);
   #[cfg(not(feature = "shadow"))]

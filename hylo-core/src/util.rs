@@ -267,8 +267,8 @@ pub mod proptest {
 #[cfg(test)]
 mod tests {
   use anchor_lang::prelude::program_option::COption;
+  use anchor_lang::solana_program::program_pack::Pack;
   use anchor_lang::AccountDeserialize;
-  use anchor_spl::token::spl_token::solana_program::program_pack::Pack;
   use anchor_spl::token::spl_token::state::Mint as SplMint;
   use anchor_spl::token::Mint;
   use anyhow::Result;

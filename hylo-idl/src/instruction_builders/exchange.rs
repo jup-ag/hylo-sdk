@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
-use anchor_lang::solana_program::sysvar::rent;
+use anchor_lang::solana_program::rent;
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use anchor_spl::{associated_token, token};
 use solana_address_lookup_table_interface::program as address_lookup_table;
@@ -134,7 +134,7 @@ pub fn initialize_mints(
     levercoin_mint: XSOL::MINT,
     stablecoin_metadata: metadata(HYUSD::MINT),
     levercoin_metadata: metadata(XSOL::MINT),
-    metadata_program: mpl_token_metadata::ID,
+    metadata_program: pda::METADATA_PROGRAM,
     token_program: token::ID,
     associated_token_program: associated_token::ID,
     rent: rent::ID,
