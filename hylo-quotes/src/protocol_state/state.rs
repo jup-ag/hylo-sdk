@@ -3,8 +3,8 @@
 //! Contains the `ProtocolState` struct and its construction from protocol
 //! accounts.
 
-use anchor_client::solana_sdk::account::Account;
-use anchor_client::solana_sdk::clock::{Clock, UnixTimestamp};
+use anchor_lang::prelude::Clock;
+use anchor_lang::solana_program::clock::UnixTimestamp;
 use anchor_lang::AccountDeserialize;
 use anchor_spl::token::{Mint, TokenAccount};
 use anyhow::{anyhow, Context, Result};
@@ -26,6 +26,7 @@ use hylo_core::solana_clock::SolanaClock;
 use hylo_core::virtual_stablecoin::VirtualStablecoin;
 use hylo_idl::tokens::{Exo, TokenMint, CBBTC, HYLOSOL, HYPE, JITOSOL};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
+use solana_account::Account;
 
 use crate::protocol_state::ProtocolAccounts;
 use crate::LST;
@@ -388,14 +389,15 @@ where
 ///
 /// # Errors
 /// * Deserialization or oracle failure
-fn build_usdc_exchange_state(
-  clock: &Clock,
-  accounts: &ProtocolAccounts,
+pub fn build_usdc_exchange_state<C: SolanaClock>(
+  clock: &C,
+  usdc_pair: &Account,
+  usdc_usd_pyth: &Account,
+  usdc_vault: &Account,
 ) -> Result<UsdcExchangeState> {
-  let usdc_pair =
-    UsdcPair::try_deserialize(&mut accounts.usdc_pair.data.as_slice())?;
+  let usdc_pair = UsdcPair::try_deserialize(&mut usdc_pair.data.as_slice())?;
   let usdc_usd =
-    PriceUpdateV2::try_deserialize(&mut accounts.usdc_usd_pyth.data.as_slice())
+    PriceUpdateV2::try_deserialize(&mut usdc_usd_pyth.data.as_slice())
       .context("USDC/USD Pyth deserialization")?;
 
   let oracle_config = OracleConfig::new(
@@ -404,7 +406,7 @@ fn build_usdc_exchange_state(
   );
   let usdc_oracle = query_pyth_oracle(clock, &usdc_usd, oracle_config)?;
   let usdc_vault =
-    TokenAccount::try_deserialize(&mut accounts.usdc_vault.data.as_slice())?;
+    TokenAccount::try_deserialize(&mut usdc_vault.data.as_slice())?;
 
   let virtual_stablecoin: VirtualStablecoin =
     usdc_pair.virtual_stablecoin.into();
@@ -420,14 +422,14 @@ fn build_usdc_exchange_state(
   })
 }
 
-impl TryFrom<&ProtocolAccounts> for ProtocolState<Clock> {
-  type Error = anyhow::Error;
-
-  /// Build `ProtocolState` from protocol accounts
+impl<C: SolanaClock + Clone> ProtocolState<C> {
+  /// Build `ProtocolState` from protocol accounts under the given clock.
+  ///
+  /// The clock sysvar in `accounts` is not read; see the [`TryFrom`] impl.
   ///
   /// # Errors
   /// Returns error if any account fails deserialization.
-  fn try_from(accounts: &ProtocolAccounts) -> Result<Self> {
+  pub fn from_accounts(clock: C, accounts: &ProtocolAccounts) -> Result<Self> {
     let hylo = Hylo::try_deserialize(&mut accounts.hylo.data.as_slice())?;
 
     let jitosol_header =
@@ -456,24 +458,26 @@ impl TryFrom<&ProtocolAccounts> for ProtocolState<Clock> {
     )
     .context("SOL/USD Pyth deserialization")?;
 
-    let clock: Clock = bincode::deserialize(&accounts.clock.data)
-      .map_err(|e| anyhow!("Failed to deserialize clock: {e}"))?;
-
-    let cbbtc_pair = build_exo_pair_state::<CBBTC, Clock>(
+    let cbbtc_pair = build_exo_pair_state::<CBBTC, C>(
       clock.clone(),
       &accounts.cbbtc_exo_pair,
       &accounts.cbbtc_vault,
       &accounts.xbtc_mint,
       &accounts.btc_usd_pyth,
     )?;
-    let hype_pair = build_exo_pair_state::<HYPE, Clock>(
+    let hype_pair = build_exo_pair_state::<HYPE, C>(
       clock.clone(),
       &accounts.hype_exo_pair,
       &accounts.hype_vault,
       &accounts.xhype_mint,
       &accounts.hype_usd_pyth,
     )?;
-    let usdc_exchange_state = build_usdc_exchange_state(&clock, accounts)?;
+    let usdc_exchange_state = build_usdc_exchange_state(
+      &clock,
+      &accounts.usdc_pair,
+      &accounts.usdc_usd_pyth,
+      &accounts.usdc_vault,
+    )?;
 
     let jitosol_stake_pool =
       SplStakePool::from_bytes(&accounts.jitosol_pool_state.data)?;
@@ -505,5 +509,20 @@ impl TryFrom<&ProtocolAccounts> for ProtocolState<Clock> {
       UFix64::new(jitosol_vault.amount),
       UFix64::new(hylosol_vault.amount),
     )
+  }
+}
+
+impl TryFrom<&ProtocolAccounts> for ProtocolState<Clock> {
+  type Error = anyhow::Error;
+
+  /// Build `ProtocolState` from protocol accounts, under the clock sysvar
+  /// they were fetched with.
+  ///
+  /// # Errors
+  /// Returns error if any account fails deserialization.
+  fn try_from(accounts: &ProtocolAccounts) -> Result<Self> {
+    let clock: Clock = bincode::deserialize(&accounts.clock.data)
+      .map_err(|e| anyhow!("Failed to deserialize clock: {e}"))?;
+    Self::from_accounts(clock, accounts)
   }
 }
