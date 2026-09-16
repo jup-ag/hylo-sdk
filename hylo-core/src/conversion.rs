@@ -116,7 +116,10 @@ impl Conversion {
   ) -> Option<UFix64<N9>> {
     (self.usd_sol_price.upper != UFix64::zero()
       && self.lst_sol_price != UFix64::zero())
-    .then_some(amount_token.convert::<N9>())
+    .then_some(amount_token)
+    // Checked: the unchecked N6 -> N9 up-conversion multiplies the raw bits
+    // by 1000 and overflows near u64::MAX instead of failing closed.
+    .and_then(|amt| amt.checked_convert::<N9>())
     .and_then(|amt| amt.mul_div_floor(token_nav, self.usd_sol_price.upper))
     .and_then(|sol| sol.mul_div_floor(UFix64::one(), self.lst_sol_price))
   }
@@ -409,6 +412,19 @@ mod tests {
         eq_tolerance!(state.levercoin_amount, back_amount_levercoin, N6, UFix64::new(1000))
       );
     }
+  }
+
+  /// `u64::MAX` token amounts must fail closed with `TokenToLst`, not
+  /// overflow in the N6 -> N9 up-conversion.
+  #[test]
+  fn token_to_lst_fails_closed_on_extreme_amount() {
+    let conversion = Conversion::spot(
+      UFix64::<N9>::new(150_000_000_000),
+      UFix64::<N9>::new(1_200_000_000),
+    );
+    let result =
+      conversion.token_to_lst(UFix64::<N6>::new(u64::MAX), UFix64::one());
+    assert_eq!(result, Err(TokenToLst));
   }
 
   #[test]
