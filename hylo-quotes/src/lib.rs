@@ -126,6 +126,7 @@ mod runtime_quote_strategy;
 pub mod simulated_operation;
 #[cfg(any())]
 mod simulation_strategy;
+pub mod router;
 pub mod token_operation;
 
 #[cfg(any())]
