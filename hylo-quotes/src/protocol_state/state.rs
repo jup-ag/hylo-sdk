@@ -28,7 +28,7 @@ use hylo_idl::tokens::{Exo, TokenMint, CBBTC, HYLOSOL, HYPE, JITOSOL};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 use solana_account::Account;
 
-use crate::protocol_state::ProtocolAccounts;
+use crate::protocol_state::{ProtocolAccountRefs, ProtocolAccounts};
 use crate::LST;
 
 /// USDC exchange state for stablecoin mint/redeem.
@@ -430,6 +430,18 @@ impl<C: SolanaClock + Clone> ProtocolState<C> {
   /// # Errors
   /// Returns error if any account fails deserialization.
   pub fn from_accounts(clock: C, accounts: &ProtocolAccounts) -> Result<Self> {
+    Self::from_account_refs(clock, &accounts.as_refs())
+  }
+
+  /// [`Self::from_accounts`] over borrowed accounts, so a caller holding the
+  /// accounts elsewhere does not copy them.
+  ///
+  /// # Errors
+  /// Returns error if any account fails deserialization.
+  pub fn from_account_refs(
+    clock: C,
+    accounts: &ProtocolAccountRefs<'_>,
+  ) -> Result<Self> {
     let hylo = Hylo::try_deserialize(&mut accounts.hylo.data.as_slice())?;
 
     let jitosol_header =
