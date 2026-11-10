@@ -55,7 +55,7 @@ pub enum CoreError {
   PythOracleVerificationLevel,
   // `nav`
   #[msg("Overflow while computing collateral ratio.")]
-  CollateralRatio,
+  CollateralRatioOverflow,
   #[msg("Arithmetic error while computing max mintable stablecoin.")]
   MaxMintable,
   #[msg("Arithmetic error while computing max swappable stablecoin.")]
@@ -80,6 +80,8 @@ pub enum CoreError {
   LstToToken,
   #[msg("Arithmetic error in conversion from protocol token to LST.")]
   TokenToLst,
+  #[msg("Arithmetic error in conversion from LST to USD.")]
+  LstToUsd,
   // `fees::controller`
   #[msg("Over/underflow while computing fee extraction for transaction.")]
   FeeExtraction,
@@ -122,8 +124,8 @@ pub enum CoreError {
   // `yields`
   #[msg("Yield harvest configuration percentages failed validation.")]
   YieldHarvestConfigValidation,
-  #[msg("Arithmetic error while computing yield harvest allocation.")]
-  YieldHarvestAllocation,
+  #[msg("Arithmetic error while applying yield harvest multiplier.")]
+  YieldHarvestMultiplier,
   // `virtual_stablecoin`
   #[msg("Overflow while minting virtual stablecoin.")]
   MintOverflow,
@@ -156,6 +158,8 @@ pub enum CoreError {
   ExoToToken,
   #[msg("Arithmetic error converting protocol token to exo collateral.")]
   ExoFromToken,
+  #[msg("Arithmetic error converting exo collateral to USD.")]
+  ExoToUsd,
   // `normalize_mint_exp`
   #[msg("Precision conversion failed while normalizing exo amount to N9.")]
   ExoAmountNormalization,
@@ -201,6 +205,8 @@ pub enum CoreError {
   RangeUnexpectedBound,
   #[msg("Stablecoin mint threshold not in Neutral rebalance range.")]
   StablecoinMintThresholdInvalid,
+  #[msg("Rebalance reserve configuration is invalid.")]
+  ReserveGateInvalid,
   // `limiter::levercoin`
   #[msg("Levercoin market cap limit not in valid configuration range.")]
   LevercoinMarketCapLimitInvalid,
@@ -272,4 +278,15 @@ pub enum CoreError {
   MaxRedeemable,
   #[msg("Minimum input exceeds maximum input for this route.")]
   MinInputExceedsMax,
+  // `redemption_rate`
+  #[msg("No redemption lane can price the reference amount.")]
+  NoRedemptionLane,
+  #[msg("Overflow while computing redemption rate.")]
+  RedemptionRateOverflow,
+  // `reserve_gate`
+  #[msg("USDC vault balance below required reserve.")]
+  UsdcReserveBelowMinimum,
+  // `exo_registry`
+  #[msg("No route between the mint pair.")]
+  UnroutablePair,
 }

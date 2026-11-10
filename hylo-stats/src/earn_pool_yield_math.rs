@@ -3,8 +3,11 @@
 use anyhow::Result;
 use fix::prelude::*;
 use fix::typenum::Z0;
-use hylo_core::borrow_rate::BorrowRateConfig;
+use hylo_core::borrow_rate::BorrowRateCurveConfig;
+use hylo_core::collateral_ratio::CollateralRatio;
+use hylo_core::fees::controller::FeeExtract;
 use hylo_core::lst::sol_price::LstSolPrice;
+use hylo_core::rebalance::mode::RebalanceMode;
 use hylo_core::yields::YieldHarvestConfig;
 
 use crate::error::StatsError::{
@@ -78,9 +81,11 @@ pub fn lst_epoch_growth(
 /// Projects next epoch's hyUSD inflow to the pool from one LST.
 ///
 /// ```txt
-/// inflow = lst_sol_value * epoch_growth * sol_usd_spot
-///          * allocation * (1 - fee)
+/// inflow = lst_sol_value * epoch_growth * multiple(cr) * sol_usd_spot
+///          * (1 - fee)
 /// ```
+///
+/// Returns zero below [`RebalanceMode::Neutral`].
 ///
 /// # Errors
 /// * Arithmetic overflow
@@ -88,38 +93,58 @@ pub fn lst_epoch_growth(
 pub fn projected_lst_inflow(
   lst_sol_value: UFix64<N9>,
   epoch_growth: UFix64<N9>,
+  collateral_ratio: CollateralRatio,
   sol_usd_spot: UFix64<N9>,
   config: &YieldHarvestConfig,
 ) -> Result<UFix64<N6>> {
-  let usd_yield = lst_sol_value
-    .mul_div_floor(epoch_growth, UFix64::one())
-    .and_then(|sol| sol.mul_div_floor(sol_usd_spot, UFix64::one()))
-    .and_then(UFix64::checked_convert::<N6>)
-    .ok_or(ProjectedInflow)?;
-  let allocated = config.apply_allocation(usd_yield)?;
-  let extract = config.apply_fee(allocated)?;
-  Ok(extract.amount_remaining)
+  if RebalanceMode::from_cr(collateral_ratio) < RebalanceMode::Neutral {
+    Ok(UFix64::zero())
+  } else {
+    let sol_yield = lst_sol_value
+      .mul_floor(epoch_growth)
+      .ok_or(ProjectedInflow)?;
+    let usd_yield = config
+      .apply_multiple(sol_yield, collateral_ratio)?
+      .mul_floor(sol_usd_spot)
+      .and_then(UFix64::checked_convert::<N6>)
+      .ok_or(ProjectedInflow)?;
+    let extract = config.apply_fee(usd_yield)?;
+    Ok(extract.amount_remaining)
+  }
 }
 
 /// Projects next epoch's hyUSD inflow from the borrow-rate stream.
 ///
 /// ```txt
-/// inflow = levercoin_market_cap * rate * (1 - fee)
+/// inflow = levercoin_market_cap * rate(cr) * (1 - fee)
 /// ```
+///
+/// Yields zero below [`RebalanceMode::Neutral`], where the protocol
+/// records a no-op harvest.
 ///
 /// # Errors
 /// * Arithmetic overflow
 /// * Invalid borrow rate config data
 pub fn projected_borrow_inflow(
   levercoin_market_cap: UFix64<N9>,
-  config: &BorrowRateConfig,
+  collateral_ratio: CollateralRatio,
+  config: &BorrowRateCurveConfig,
+  fee: UFix64<N4>,
 ) -> Result<UFix64<N6>> {
-  let gross = config
-    .apply_borrow_rate(levercoin_market_cap, UFix64::constant(1))?
-    .checked_convert::<N6>()
-    .ok_or(ProjectedInflow)?;
-  let extract = config.apply_fee(gross)?;
-  Ok(extract.amount_remaining)
+  if RebalanceMode::from_cr(collateral_ratio) < RebalanceMode::Neutral {
+    Ok(UFix64::zero())
+  } else {
+    let gross = config
+      .apply_borrow_rate(
+        levercoin_market_cap,
+        collateral_ratio,
+        UFix64::constant(1),
+      )?
+      .checked_convert::<N6>()
+      .ok_or(ProjectedInflow)?;
+    let extract = FeeExtract::new(fee, gross)?;
+    Ok(extract.amount_remaining)
+  }
 }
 
 /// Subtracts outstanding pool drawdown from a projected inflow,
@@ -136,8 +161,10 @@ pub fn apply_drawdown_offset(
 
 #[cfg(test)]
 mod tests {
-  use hylo_core::borrow_rate::BorrowRateConfig;
+  use hylo_core::borrow_rate::BorrowRateCurveConfig;
+  use hylo_core::collateral_ratio::CR;
   use hylo_core::lst::sol_price::LstSolPrice;
+  use hylo_core::rebalance::mode::RebalanceMode;
   use hylo_core::yields::YieldHarvestConfig;
 
   use super::*;
@@ -206,37 +233,52 @@ mod tests {
     Ok(())
   }
 
-  fn harvest_config(allocation_bps: u64, fee_bps: u64) -> YieldHarvestConfig {
+  fn harvest_config(ceil_mult: u64, fee_bps: u64) -> YieldHarvestConfig {
     YieldHarvestConfig {
-      allocation: UFix64::<N4>::new(allocation_bps).into(),
+      ceil_mult: UFix64::<N9>::new(ceil_mult).into(),
       fee: UFix64::<N4>::new(fee_bps).into(),
     }
   }
 
   #[test]
-  fn projected_lst_inflow_full_allocation() -> Result<()> {
+  fn projected_lst_inflow_neutral() -> Result<()> {
     // 100,000 SOL at 0.05%/epoch growth, SOL at $150:
-    // 50 SOL * 150 = $7,500; 100% allocation, 10% fee -> $6,750
+    // 50 SOL * 150 = $7,500; 1x in neutral, 10% fee -> $6,750
     let inflow = projected_lst_inflow(
       UFix64::<N9>::new(100_000_000_000_000),
       UFix64::<N9>::new(500_000),
+      CR::Finite(RebalanceMode::Neutral.active_range().start()?),
       UFix64::<N9>::new(150_000_000_000),
-      &harvest_config(10_000, 1_000),
+      &harvest_config(2_000_000_000, 1_000),
     )?;
     assert_eq!(inflow, UFix64::<N6>::new(6_750_000_000));
     Ok(())
   }
 
   #[test]
-  fn projected_lst_inflow_partial_allocation() -> Result<()> {
-    // Same yield, 80% allocation, 10% fee -> 7,500 * 0.8 * 0.9 = $5,400
+  fn projected_lst_inflow_at_ceil() -> Result<()> {
+    // Same yield at 2x ceiling, 10% fee -> 7,500 * 2 * 0.9 = $13,500
     let inflow = projected_lst_inflow(
       UFix64::<N9>::new(100_000_000_000_000),
       UFix64::<N9>::new(500_000),
+      CR::Infinite,
       UFix64::<N9>::new(150_000_000_000),
-      &harvest_config(8_000, 1_000),
+      &harvest_config(2_000_000_000, 1_000),
     )?;
-    assert_eq!(inflow, UFix64::<N6>::new(5_400_000_000));
+    assert_eq!(inflow, UFix64::<N6>::new(13_500_000_000));
+    Ok(())
+  }
+
+  #[test]
+  fn projected_lst_inflow_zero_below_neutral() -> Result<()> {
+    let inflow = projected_lst_inflow(
+      UFix64::<N9>::new(100_000_000_000_000),
+      UFix64::<N9>::new(500_000),
+      CR::Finite(UFix64::new(1_200_000_000)),
+      UFix64::<N9>::new(150_000_000_000),
+      &harvest_config(2_000_000_000, 1_000),
+    )?;
+    assert_eq!(inflow, UFix64::zero());
     Ok(())
   }
 
@@ -245,8 +287,9 @@ mod tests {
     let inflow = projected_lst_inflow(
       UFix64::<N9>::new(100_000_000_000_000),
       UFix64::zero(),
+      CR::Infinite,
       UFix64::<N9>::new(150_000_000_000),
-      &harvest_config(10_000, 1_000),
+      &harvest_config(1_000_000_000, 1_000),
     )?;
     assert_eq!(inflow, UFix64::zero());
     Ok(())
@@ -254,18 +297,45 @@ mod tests {
 
   #[test]
   fn projected_borrow_inflow_basic() -> Result<()> {
-    // $1,000,000 market cap at 384,620e-9 per epoch, 5% fee:
+    // $1,000,000 market cap at 384,620e-9 floor rate per epoch, 5% fee:
     // $384.62 gross -> $365.389 to pool
-    let config = BorrowRateConfig::new(
+    let config = BorrowRateCurveConfig::new(
       UFix64::<N9>::new(384_620).into(),
-      UFix64::<N4>::new(500).into(),
+      UFix64::<N9>::new(1_648_352).into(),
     );
     let inflow = projected_borrow_inflow(
       UFix64::<N9>::new(1_000_000_000_000_000),
+      CR::Finite(RebalanceMode::Neutral.active_range().start()?),
       &config,
+      UFix64::<N4>::new(500),
     )?;
     assert_eq!(inflow, UFix64::<N6>::new(365_389_000));
     Ok(())
+  }
+
+  #[test]
+  fn projected_borrow_inflow_zero_below_neutral() -> Result<()> {
+    let config = BorrowRateCurveConfig::new(
+      UFix64::<N9>::new(384_620).into(),
+      UFix64::<N9>::new(1_648_352).into(),
+    );
+    let market_cap = UFix64::<N9>::new(1_000_000_000_000_000);
+    let below_neutral = [
+      RebalanceMode::Depeg,
+      RebalanceMode::SellZone2,
+      RebalanceMode::SellZone1,
+    ];
+    below_neutral.iter().try_for_each(|mode| -> Result<()> {
+      let cr = CR::Finite(mode.active_range().start()?);
+      let inflow = projected_borrow_inflow(
+        market_cap,
+        cr,
+        &config,
+        UFix64::<N4>::new(500),
+      )?;
+      assert_eq!(inflow, UFix64::zero(), "nonzero inflow in {mode}");
+      Ok(())
+    })
   }
 
   #[test]

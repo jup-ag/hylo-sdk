@@ -8,10 +8,10 @@
 //!
 //! Two quote strategies are available:
 //!
-//! - **`ProtocolStateStrategy`**: Computes quotes using protocol state and SDK
+//! * **`ProtocolStateStrategy`**: Computes quotes using protocol state and SDK
 //!   math. Fast and doesn't require transaction simulation, but doesn't check
 //!   wallet balances.
-//! - **`SimulationStrategy`**: Computes quotes by simulating transactions.
+//! * **`SimulationStrategy`**: Computes quotes by simulating transactions.
 //!   Slower but validates that transactions would actually succeed (e.g.,
 //!   checks wallet balances).
 //!
@@ -19,7 +19,7 @@
 //!
 //! ## Using `ProtocolStateStrategy`
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use hylo_quotes::prelude::*;
 //! use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 //! use std::sync::Arc;
@@ -47,7 +47,7 @@
 //!
 //! ## Using `SimulationStrategy`
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use hylo_clients::prelude::*;
 //! use hylo_quotes::prelude::*;
 //!
@@ -97,7 +97,7 @@
 // Jupiter fork: everything that builds transactions or reaches the chain
 // through an RpcClient is gated behind `#[cfg(any())]`, which is never true.
 // The sources stay on disk untouched so upstream merges keep applying, but
-// only `protocol_state` and `token_operation` are compiled.
+// only `protocol_state`, `redemption_rate` and `token_operation` are compiled.
 #[cfg(any())]
 use anchor_client::solana_sdk::instruction::Instruction;
 #[cfg(any())]
@@ -120,13 +120,13 @@ mod protocol_state_strategy;
 mod quote_metadata;
 #[cfg(any())]
 mod quote_strategy;
+pub mod redemption_rate;
 #[cfg(any())]
 mod runtime_quote_strategy;
 #[cfg(any())]
 pub mod simulated_operation;
 #[cfg(any())]
 mod simulation_strategy;
-pub mod router;
 pub mod token_operation;
 
 #[cfg(any())]
@@ -150,21 +150,14 @@ pub trait LST: StakePool {}
 impl LST for JITOSOL {}
 impl LST for HYLOSOL {}
 
-/// Default buffered compute units for all exchange operations.
-///
-/// This is a buffered estimate (higher than measured values ~74k-97k CU) that
-/// provides a safe default for all current quote operations. Measured values
-/// came from calibration tool, but this value includes additional buffer for
-/// safety across all operation types.
-///
-/// In the future, this could be replaced with per-instruction defaults based
-/// on more comprehensive statistical analysis.
+/// Compute unit limit for every quote operation, with buffer over the
+/// measured 74k to 97k range.
 #[cfg(any())]
 pub const DEFAULT_CUS_WITH_BUFFER: u64 = 100_000;
 
 /// Typed executable quote with amounts, instructions, and compute units.
 #[cfg(any())]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecutableQuote<In: Integer, Out: Integer, Fee: Integer> {
   pub amount_in: UFix64<In>,
   pub amount_out: UFix64<Out>,
@@ -178,7 +171,7 @@ pub struct ExecutableQuote<In: Integer, Out: Integer, Fee: Integer> {
 
 /// Executable quote with runtime exponent information.
 #[cfg(any())]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecutableQuoteValue {
   pub amount_in: UFixValue64,
   pub amount_out: UFixValue64,
@@ -209,7 +202,7 @@ impl<In: Integer, Out: Integer, Fee: Integer>
 }
 
 #[cfg(any())]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum ComputeUnitStrategy {
   /// Estimated compute units based on historical data
   Estimated,

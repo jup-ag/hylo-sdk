@@ -1,8 +1,7 @@
 //! Exchange context trait and implementations.
 //!
-//! [`ExchangeContext`] abstracts over collateral source and provides
-//! default implementations for NAVs, rebalance modes, swap fees, and
-//! validations.
+//! [`ExchangeContext`] abstracts over the collateral source, with default
+//! NAVs, rebalance modes, swap fees, and validations.
 
 mod exo;
 mod lst;
@@ -13,20 +12,21 @@ use fix::prelude::*;
 
 pub use self::exo::ExoExchangeContext;
 pub use self::lst::LstExchangeContext;
+use crate::collateral_ratio::{CollateralRatio, CR};
 use crate::conversion::SwapConversion;
 use crate::error::CoreError;
 #[cfg(feature = "offchain")]
-use crate::error::CoreError::{CollateralRatio, DestinationCollateral};
+use crate::error::CoreError::CollateralRatioOverflow;
 use crate::error::CoreError::{
-  DestinationStablecoin, LevercoinNav, MaxMintable, MaxSwappable,
-  RebalanceBuySideTarget, RebalanceSellSideLiquidity,
-  RequestedStablecoinOverMaxMintable, VirtualStablecoinOverhang,
-  VirtualStablecoinSurplus,
+  DestinationStablecoin, LevercoinMarketCapArithmetic, LevercoinNav,
+  MaxMintable, MaxSwappable, RebalanceBuySideTarget,
+  RebalanceSellSideLiquidity, RequestedStablecoinOverMaxMintable,
+  VirtualStablecoinOverhang, VirtualStablecoinSurplus,
 };
 use crate::exchange_math::{
-  collateral_ratio, depeg_stablecoin_nav, levercoin_market_cap,
-  max_mintable_stablecoin, max_redeemable_stablecoin, max_swappable_stablecoin,
-  next_levercoin_mint_nav, next_levercoin_redeem_nav, total_value_locked,
+  depeg_stablecoin_nav, max_mintable_stablecoin, max_redeemable_stablecoin,
+  max_swappable_stablecoin, next_levercoin_mint_nav, next_levercoin_redeem_nav,
+  total_value_locked,
 };
 use crate::fees::controller::{FeeExtract, LevercoinFees};
 use crate::fees::curve_controller::cr_from_curve;
@@ -47,7 +47,7 @@ use crate::util::max_scaled_input;
 pub struct ProjectedState {
   pub total_collateral: UFix64<N9>,
   pub stablecoin_supply: UFix64<N6>,
-  pub collateral_ratio: UFix64<N9>,
+  pub collateral_ratio: CR,
 }
 
 /// Shared interface for exchange context implementations.
@@ -72,12 +72,26 @@ pub trait ExchangeContext {
 
   /// Confirm stablecoin mint capability based on configured normal mode CR.
   fn stablecoin_mint_enabled(&self) -> bool {
-    self.collateral_ratio() >= self.stablecoin_mint_threshold()
+    self
+      .collateral_ratio()
+      .at_least(self.stablecoin_mint_threshold())
   }
 
   /// Confirm levercoin mint capability; disabled only during Depeg.
   fn levercoin_mint_enabled(&self) -> bool {
     self.rebalance_mode() != RebalanceMode::Depeg
+  }
+
+  /// Stablecoin to levercoin conversion: levercoin mintable and stablecoin
+  /// not, so CR is below the stablecoin mint threshold and above Depeg.
+  fn stable_to_lever_conversion_enabled(&self) -> bool {
+    self.levercoin_mint_enabled() && !self.stablecoin_mint_enabled()
+  }
+
+  /// Levercoin to stablecoin conversion: CR at or above the stablecoin mint
+  /// threshold.
+  fn lever_to_stable_conversion_enabled(&self) -> bool {
+    self.stablecoin_mint_enabled()
   }
 
   /// Sell-side rebalance price curve from oracle spot.
@@ -160,7 +174,11 @@ pub trait ExchangeContext {
       RebalanceMode::BuyZone1 => {
         let spot = self.collateral_oracle_price().spot;
         let cr_spot = self.rebalance_buy_curve()?.cr_at_price(spot)?;
-        midpoint(self.collateral_ratio(), cr_spot).ok_or(RebalanceBuySideTarget)
+        self
+          .collateral_ratio()
+          .as_finite()
+          .and_then(|cr| midpoint(cr, cr_spot))
+          .ok_or(RebalanceBuySideTarget)
       }
       _ => Err(RebalanceBuySideTarget),
     }
@@ -194,7 +212,10 @@ pub trait ExchangeContext {
       RebalanceMode::SellZone1 => {
         let spot = self.collateral_oracle_price().spot;
         let cr_spot = self.rebalance_sell_curve()?.cr_at_price(spot)?;
-        midpoint(self.collateral_ratio(), cr_spot)
+        self
+          .collateral_ratio()
+          .as_finite()
+          .and_then(|cr| midpoint(cr, cr_spot))
           .ok_or(RebalanceSellSideLiquidity)
       }
       _ => Err(RebalanceSellSideLiquidity),
@@ -226,7 +247,7 @@ pub trait ExchangeContext {
   fn rebalance_mode(&self) -> RebalanceMode;
 
   /// Cached collateral ratio, computed at construction.
-  fn collateral_ratio(&self) -> UFix64<N9>;
+  fn collateral_ratio(&self) -> CollateralRatio;
 
   /// Levercoin fee configuration.
   fn levercoin_fees(&self) -> &LevercoinFees;
@@ -242,12 +263,27 @@ pub trait ExchangeContext {
     )
   }
 
-  /// Current levercoin market cap in USD.
+  /// Current levercoin market cap in USD: collateral value above the
+  /// stablecoin claim, zero when the levercoin is underwater or unissued.
   ///
   /// # Errors
-  /// * Missing supply, NAV failure, or arithmetic overflow
+  /// * Missing supply or arithmetic overflow
   fn levercoin_market_cap(&self) -> Result<UFix64<N9>, CoreError> {
-    levercoin_market_cap(self.levercoin_supply()?, self.levercoin_mint_nav()?)
+    if self.levercoin_supply()? == UFix64::zero() {
+      Ok(UFix64::zero())
+    } else {
+      let collateral_value = self
+        .total_collateral()
+        .mul_ceil(self.collateral_usd_price().upper)
+        .ok_or(LevercoinMarketCapArithmetic)?;
+      let stablecoin_nav = self.stablecoin_nav()?;
+      let stablecoin_value = self
+        .virtual_stablecoin_supply()?
+        .checked_convert::<N9>()
+        .and_then(|supply| supply.mul_floor(stablecoin_nav))
+        .ok_or(LevercoinMarketCapArithmetic)?;
+      Ok(collateral_value.saturating_sub(&stablecoin_value))
+    }
   }
 
   /// Stablecoin NAV — $1 in all modes except Depeg.
@@ -333,7 +369,7 @@ pub trait ExchangeContext {
     new_total: UFix64<N9>,
     new_stablecoin: UFix64<N6>,
   ) -> Result<RebalanceMode, CoreError> {
-    let projected_cr = collateral_ratio(
+    let projected_cr = CollateralRatio::new(
       new_total,
       self.collateral_usd_price().lower,
       new_stablecoin,
@@ -341,10 +377,8 @@ pub trait ExchangeContext {
     Ok(RebalanceMode::from_cr(projected_cr))
   }
 
-  /// Returns the worse of current vs projected mode for fee
-  /// purposes. Transactions that improve CR only pay fees at
-  /// the current mode; transactions that worsen CR pay at the
-  /// projected mode.
+  /// Worse of the current and projected rebalance modes, so a transaction
+  /// that worsens CR pays fees at the projected mode.
   fn select_rebalance_mode_for_fees(
     &self,
     projected: RebalanceMode,
@@ -429,7 +463,7 @@ pub trait ExchangeContext {
         .active_range()
         .start()?
         .checked_sub(&atom)
-        .ok_or(CollateralRatio)?;
+        .ok_or(CollateralRatioOverflow)?;
       let min_collateral = supply
         .checked_convert::<N9>()
         .and_then(|supply| {
@@ -442,11 +476,11 @@ pub trait ExchangeContext {
         .and_then(|last_depeg_collateral| {
           last_depeg_collateral.checked_add(&atom)
         })
-        .ok_or(CollateralRatio)?;
+        .ok_or(CollateralRatioOverflow)?;
       self
         .total_collateral()
         .checked_sub(&min_collateral)
-        .ok_or(DestinationCollateral)
+        .ok_or(CoreError::DestinationCollateral)
     }
   }
 
@@ -464,7 +498,7 @@ pub trait ExchangeContext {
         UFix64::<N9>::new(u64::MAX),
       )
       .and_then(UFix64::checked_convert_ceil::<N6>)
-      .ok_or(CollateralRatio)?;
+      .ok_or(CollateralRatioOverflow)?;
     Ok(
       self
         .virtual_stablecoin_supply()?

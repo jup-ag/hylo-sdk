@@ -17,6 +17,11 @@ pub struct Point<Exp: Integer> {
 
 impl<Exp: Integer> Point<Exp> {
   #[must_use]
+  pub const fn new(x: IFix64<Exp>, y: IFix64<Exp>) -> Point<Exp> {
+    Point { x, y }
+  }
+
+  #[must_use]
   pub const fn from_ints(x: i64, y: i64) -> Point<Exp> {
     Point {
       x: IFix64::constant(x),
@@ -174,6 +179,22 @@ impl<const RES: usize, Exp: Integer> FixInterp<RES, Exp> {
       .ok_or(CoreError::InterpArithmetic)
   }
 
+  /// Interpolates at `x`, saturating at `y_max` above the domain.
+  ///
+  /// # Errors
+  /// * Input x is below the valid domain.
+  /// * Arithmetic overflow during calculation.
+  pub fn saturating_interpolate(
+    &self,
+    x: IFix64<Exp>,
+  ) -> Result<IFix64<Exp>, CoreError> {
+    if x > self.x_max() {
+      Ok(self.y_max())
+    } else {
+      self.interpolate(x)
+    }
+  }
+
   /// Inverse of [`interpolate`](Self::interpolate): the approximate `x`
   /// for the given `y`.
   ///
@@ -315,7 +336,7 @@ mod tests {
     let interp = mint_fee_curve()?;
     let x = IFix64::<N5>::constant(150_000);
     let y = interp.interpolate(x)?;
-    assert_eq!(y, IFix64::constant(200));
+    assert_eq!(y, IFix64::constant(800));
     Ok(())
   }
 
@@ -324,7 +345,7 @@ mod tests {
     let interp = mint_fee_curve()?;
     let x = IFix64::<N5>::constant(170_000);
     let y = interp.interpolate(x)?;
-    assert_eq!(y, IFix64::constant(5));
+    assert_eq!(y, IFix64::constant(605));
     Ok(())
   }
 

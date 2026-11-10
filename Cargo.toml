@@ -9,7 +9,7 @@ exclude = ["hylo-clients", "hylo-jupiter", "hylo-stats"]
 resolver = "2"
 
 [workspace.package]
-version = "2.3.10"
+version = "2.7.5"
 edition = "2021"
 license = "MPL-2.0"
 homepage = "https://hylo.so"
@@ -23,11 +23,12 @@ anchor-lang = "1"
 anchor-spl = "1"
 anyhow = "1.0.98"
 bincode = "1.3.3"
+bytemuck = { version = "1.25.2", features = ["extern_crate_std", "min_const_generics"] }
 const-crypto = "0.3.0"
-hylo-core = { version = "2.1.0", path = "hylo-core" }
+hylo-core = { version = "2.7.5", path = "hylo-core" }
 hylo-fix = { git = "https://github.com/jup-ag/hylo-fix.git", rev = "4d67fd6b9e8f4bc4e3e7e2a91fd700be37f1a621" }
-hylo-idl = { version = "2.1.0", path = "hylo-idl" }
-hylo-quotes = { version = "2.1.0", path = "hylo-quotes" }
+hylo-idl = { version = "2.7.5", path = "hylo-idl" }
+hylo-quotes = { version = "2.7.5", path = "hylo-quotes" }
 itertools = "0.14.0"
 more-asserts = "0.3.1"
 proptest = "1.5.0"

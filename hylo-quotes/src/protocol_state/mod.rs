@@ -1,16 +1,18 @@
 mod accounts;
+mod exo_pair;
+mod exo_registry;
 // Jupiter fork: `provider` fetches state through an RpcClient; the file is
 // kept on disk but not compiled.
 #[cfg(any())]
 mod provider;
-mod refs;
 mod state;
 
 pub use accounts::ProtocolAccounts;
+pub use exo_pair::{ExoPairAccounts, ExoPairState, EXO_PAIR_ACCOUNTS};
+pub use exo_registry::{
+  exo_entry_role, exo_pubkeys_from_entries, exo_pyth_feed_by_mint,
+  find_exo_entry, read_exo_entries,
+};
 #[cfg(any())]
 pub use provider::{RpcStateProvider, StateProvider};
-pub use refs::ProtocolAccountRefs;
-pub use state::{
-  build_exo_pair_state, build_lst_exchange_context, build_usdc_exchange_state,
-  ExoPairState, ProtocolState, UsdcExchangeState,
-};
+pub use state::{build_lst_exchange_context, ProtocolState, UsdcPairState};

@@ -5,6 +5,7 @@ pub mod asset_swap_config;
 pub mod borrow_rate;
 #[cfg(feature = "offchain")]
 pub mod calculus;
+pub mod collateral_ratio;
 pub mod conversion;
 pub mod earn_pool_math;
 pub mod error;
@@ -20,6 +21,7 @@ pub mod lst;
 pub mod par_tolerance;
 pub mod pyth;
 pub mod rebalance;
+pub mod reserve_gate;
 pub mod slippage_config;
 pub mod solana_clock;
 pub mod util;

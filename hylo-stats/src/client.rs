@@ -10,13 +10,16 @@ use anchor_lang::AccountDeserialize;
 use anchor_spl::token::{Mint, TokenAccount};
 use anyhow::Result;
 use fix::prelude::*;
+use hylo_core::collateral_ratio::{CollateralRatio, CR};
 use hylo_core::exchange_context::{ExchangeContext, ExoExchangeContext};
 use hylo_core::idl::exchange::accounts::{ExoPair, Hylo, LstHeader};
 use hylo_core::lst::sol_price::LstSolPrice;
 use hylo_core::lst::stake_pool::SplStakePool;
-use hylo_core::pyth::{query_pyth_oracle, OracleConfig};
+use hylo_core::lst::total_sol_cache::TotalSolCache;
+use hylo_core::pyth::{query_pyth_oracle, OracleConfig, OraclePrice};
 use hylo_core::rebalance::pool_drawdown::PoolDrawdown;
 use hylo_core::util::normalize_mint_exp;
+use hylo_core::virtual_stablecoin::VirtualStablecoin;
 use hylo_idl::pda;
 use hylo_idl::tokens::{StakePool, TokenMint, CBBTC, HYLOSOL, JITOSOL, SHYUSD};
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
@@ -218,16 +221,16 @@ impl StatsClient {
   }
 }
 
-/// Values an exo pair's levercoin market cap for the borrow-rate
-/// projection. Mirrors hylo-quotes `build_cbbtc_exchange_context`.
-fn exo_levercoin_market_cap(
+/// Loads an exo pair's exchange context for the borrow-rate projection.
+/// Mirrors hylo-quotes `build_cbbtc_exchange_context`.
+fn exo_exchange_context(
   clock: &Clock,
   exo_pair: &ExoPair,
   collateral_mint: &Mint,
   exo_vault: &TokenAccount,
   levercoin_mint: &Mint,
   collateral_usd: &PriceUpdateV2,
-) -> Result<UFix64<N9>> {
+) -> Result<ExoExchangeContext<Clock>> {
   let oracle_config = OracleConfig::new(
     exo_pair.oracle_interval_secs,
     exo_pair.oracle_conf_tolerance.try_into()?,
@@ -246,8 +249,7 @@ fn exo_levercoin_market_cap(
     exo_pair.buy_curve_config.into(),
     exo_pair.levercoin_market_cap_limit.try_into()?,
   )?;
-  let market_cap = exo_context.levercoin_market_cap()?;
-  Ok(market_cap)
+  Ok(exo_context)
 }
 
 /// Sums outstanding pool drawdown across the LST pair and cbBTC exo pair.
@@ -283,6 +285,22 @@ fn lst_position(
   })
 }
 
+/// Computes the LST pair collateral ratio at the oracle lower bound.
+fn lst_collateral_ratio(
+  clock: &Clock,
+  hylo: &Hylo,
+  sol_usd: &OraclePrice,
+) -> Result<CR> {
+  let total_sol_cache: TotalSolCache = hylo.total_sol_cache.into();
+  let virtual_stablecoin: VirtualStablecoin = hylo.virtual_stablecoin.into();
+  let collateral_ratio = CollateralRatio::new(
+    total_sol_cache.get_validated(clock.epoch)?,
+    sol_usd.price_range()?.lower,
+    virtual_stablecoin.supply()?,
+  )?;
+  Ok(collateral_ratio)
+}
+
 /// Builds [`StatsInputs`] from deserialized accounts.
 ///
 /// # Errors
@@ -296,10 +314,12 @@ pub fn build_stats_inputs(
     accounts.hylo.oracle_interval_secs,
     accounts.hylo.oracle_conf_tolerance.try_into()?,
   );
-  let sol_usd_spot =
-    query_pyth_oracle(&accounts.clock, &accounts.sol_usd, oracle_config)?.spot;
+  let sol_usd =
+    query_pyth_oracle(&accounts.clock, &accounts.sol_usd, oracle_config)?;
+  let lst_collateral_ratio =
+    lst_collateral_ratio(&accounts.clock, &accounts.hylo, &sol_usd)?;
 
-  let levercoin_market_cap = exo_levercoin_market_cap(
+  let exo_context = exo_exchange_context(
     &accounts.clock,
     &accounts.exo_pair,
     &accounts.exo_collateral_mint,
@@ -316,6 +336,7 @@ pub fn build_stats_inputs(
     shyusd_supply: UFix64::new(accounts.shyusd_mint.supply),
     lst_harvest_cache: accounts.hylo.yield_harvest_cache.into(),
     harvest_config: accounts.hylo.yield_harvest_config.into(),
+    lst_collateral_ratio,
     lst_positions: vec![
       lst_position(
         &accounts.jitosol_header,
@@ -331,10 +352,15 @@ pub fn build_stats_inputs(
     exo_snapshots: vec![ExoSnapshot {
       collateral_mint: CBBTC::MINT,
       harvest_cache: accounts.exo_pair.borrow_rate_harvest_cache.into(),
-      borrow_rate_config: accounts.exo_pair.borrow_rate_config.into(),
-      levercoin_market_cap,
+      borrow_rate_curve_config: accounts
+        .exo_pair
+        .borrow_rate_curve_config
+        .into(),
+      borrow_rate_fee: accounts.exo_pair.borrow_rate_fee.try_into()?,
+      collateral_ratio: exo_context.collateral_ratio(),
+      levercoin_market_cap: exo_context.levercoin_market_cap()?,
     }],
-    sol_usd_spot,
+    sol_usd_spot: sol_usd.spot,
     outstanding_drawdown,
     epochs_per_year,
   })

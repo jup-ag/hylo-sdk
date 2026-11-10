@@ -2,6 +2,7 @@ use fix::prelude::*;
 
 use super::controller::FeeExtract;
 use super::interp::FixInterp;
+use crate::collateral_ratio::CollateralRatio;
 use crate::error::CoreError;
 
 /// Downconvert CR from `N9` unsigned to `N5` signed for curve lookup.
@@ -46,11 +47,10 @@ pub trait InterpolatedFeeController<const RES: usize> {
   /// Fee rate for a collateral ratio from the underlying curve.
   ///
   /// # Errors
-  /// * CR conversion, domain, or fee conversion
-  fn fee_rate(&self, ucr: UFix64<N9>) -> Result<UFix64<N5>, CoreError> {
-    let cr = narrow_cr(ucr)?;
+  /// * Domain or fee conversion
+  fn fee_rate(&self, cr: CollateralRatio) -> Result<UFix64<N5>, CoreError> {
     self
-      .fee_inner(cr)?
+      .fee_inner(cr.fee_curve_x())?
       .narrow()
       .ok_or(CoreError::InterpFeeConversion)
   }
@@ -58,13 +58,13 @@ pub trait InterpolatedFeeController<const RES: usize> {
   /// Applies the interpolated fee to an input amount.
   ///
   /// # Errors
-  /// * CR conversion, domain, or fee extraction arithmetic
+  /// * Domain or fee extraction arithmetic
   fn apply_fee<InExp>(
     &self,
-    ucr: UFix64<N9>,
+    cr: CollateralRatio,
     amount_in: UFix64<InExp>,
   ) -> Result<FeeExtract<InExp>, CoreError> {
-    FeeExtract::new(self.fee_rate(ucr)?, amount_in)
+    FeeExtract::new(self.fee_rate(cr)?, amount_in)
   }
 }
 
@@ -89,10 +89,8 @@ impl InterpolatedFeeController<21> for InterpolatedMintFees {
     let interp = self.curve();
     if cr < interp.x_min() {
       Err(CoreError::NoValidStablecoinMintFee)
-    } else if cr > interp.x_max() {
-      Ok(interp.y_max())
     } else {
-      interp.interpolate(cr)
+      interp.saturating_interpolate(cr)
     }
   }
 
@@ -117,6 +115,21 @@ impl InterpolatedRedeemFees {
   #[must_use]
   pub fn new(curve: FixInterp<11, N5>) -> InterpolatedRedeemFees {
     InterpolatedRedeemFees { curve }
+  }
+
+  /// Fee rate at `cr`, saturating at `y_max`.
+  ///
+  /// # Errors
+  /// * Interpolation or fee conversion
+  #[cfg(feature = "offchain")]
+  pub fn saturating_fee_rate(
+    &self,
+    cr: CollateralRatio,
+  ) -> Result<UFix64<N5>, CoreError> {
+    self
+      .fee_inner(cr.fee_curve_x().min(self.curve.x_max()))?
+      .narrow()
+      .ok_or(CoreError::InterpFeeConversion)
   }
 }
 
@@ -150,21 +163,27 @@ impl InterpolatedFeeController<11> for InterpolatedRedeemFees {
 
 #[cfg(test)]
 mod tests {
+  use anyhow::Result;
   use fix::typenum::Integer;
   use proptest::prelude::*;
   use proptest::test_runner::TestCaseResult;
 
   use super::*;
+  use crate::collateral_ratio::CR;
   use crate::error::CoreError;
   use crate::fees::curves::{MINT_FEE_INV, REDEEM_FEE_LN};
   use crate::util::proptest::*;
 
-  fn collateral_ratio() -> BoxedStrategy<UFix64<N9>> {
-    (0u64..4_000_000_000u64).prop_map(UFix64::new).boxed()
+  fn collateral_ratio() -> BoxedStrategy<CollateralRatio> {
+    (0u64..4_000_000_000u64)
+      .prop_map(|bits| CR::Finite(UFix64::new(bits)))
+      .boxed()
   }
 
-  fn redeem_domain_collateral_ratio() -> BoxedStrategy<UFix64<N9>> {
-    (0u64..=1_500_000_000u64).prop_map(UFix64::new).boxed()
+  fn redeem_domain_collateral_ratio() -> BoxedStrategy<CollateralRatio> {
+    (0u64..=1_500_000_000u64)
+      .prop_map(|bits| CR::Finite(UFix64::new(bits)))
+      .boxed()
   }
 
   fn mint_fees() -> InterpolatedMintFees {
@@ -180,7 +199,7 @@ mod tests {
   fn assert_conservation<Exp: Integer>(
     extract: &FeeExtract<Exp>,
     amount: UFix64<Exp>,
-    cr: UFix64<N9>,
+    cr: CollateralRatio,
   ) -> TestCaseResult {
     prop_assert_eq!(
       extract
@@ -194,12 +213,11 @@ mod tests {
   }
 
   fn assert_mint_fee<Exp: Integer>(
-    cr: UFix64<N9>,
+    cr: CollateralRatio,
     amount: UFix64<Exp>,
   ) -> TestCaseResult {
     let fees = mint_fees();
-    let cr_n5 = narrow_cr(cr)
-      .map_err(|e| TestCaseError::fail(format!("CR narrowing failed: {e}")))?;
+    let cr_n5 = cr.fee_curve_x();
     match fees.apply_fee(cr, amount) {
       Ok(extract) => assert_conservation(&extract, amount, cr),
       Err(e) => {
@@ -216,12 +234,11 @@ mod tests {
   }
 
   fn assert_redeem_fee<Exp: Integer>(
-    cr: UFix64<N9>,
+    cr: CollateralRatio,
     amount: UFix64<Exp>,
   ) -> TestCaseResult {
     let fees = redeem_fees();
-    let cr_n5 = narrow_cr(cr)
-      .map_err(|e| TestCaseError::fail(format!("CR narrowing failed: {e}")))?;
+    let cr_n5 = cr.fee_curve_x();
     match fees.apply_fee(cr, amount) {
       Ok(extract) => assert_conservation(&extract, amount, cr),
       Err(e) => {
@@ -238,7 +255,7 @@ mod tests {
   }
 
   #[test]
-  fn redeem_fee_rejected_above_curve_domain() -> anyhow::Result<()> {
+  fn redeem_fee_rejected_above_curve_domain() {
     let fees = redeem_fees();
     let cr = IFix64::<N5>::constant(150_001);
     assert_eq!(
@@ -249,19 +266,42 @@ mod tests {
       fees.fee_slope(cr).err(),
       Some(CoreError::NoValidStablecoinRedeemFee)
     );
-    Ok(())
   }
 
   #[test]
-  fn redeem_fee_maximal_at_domain_edge() -> anyhow::Result<()> {
+  fn redeem_fee_maximal_at_domain_edge() -> Result<()> {
     let fees = redeem_fees();
     let cr = IFix64::<N5>::constant(150_000);
     assert_eq!(fees.fee_inner(cr)?, fees.curve().y_max());
     Ok(())
   }
 
+  #[cfg(feature = "offchain")]
   #[test]
-  fn mint_slope_zero_where_fee_pinned() -> anyhow::Result<()> {
+  fn saturating_fee_rate_equals_strict_inside_domain() -> Result<()> {
+    let fees = redeem_fees();
+    let cr = CR::Finite(UFix64::new(1_300_000_000));
+    assert_eq!(fees.saturating_fee_rate(cr)?, fees.fee_rate(cr)?);
+    Ok(())
+  }
+
+  #[cfg(feature = "offchain")]
+  #[test]
+  fn saturating_fee_rate_holds_edge_above_domain() -> Result<()> {
+    let fees = redeem_fees();
+    let edge = fees.fee_rate(CR::Finite(UFix64::new(1_500_000_000)))?;
+    let above = CR::Finite(UFix64::new(3_000_000_000));
+    assert_eq!(
+      fees.fee_rate(above).err(),
+      Some(CoreError::NoValidStablecoinRedeemFee)
+    );
+    assert_eq!(fees.saturating_fee_rate(above)?, edge);
+    assert_eq!(fees.saturating_fee_rate(CR::Infinite)?, edge);
+    Ok(())
+  }
+
+  #[test]
+  fn mint_slope_zero_where_fee_pinned() -> Result<()> {
     let fees = mint_fees();
     let pinned = IFix64::<N5>::constant(150_001);
     assert_eq!(fees.fee_inner(pinned)?, fees.curve().y_min());

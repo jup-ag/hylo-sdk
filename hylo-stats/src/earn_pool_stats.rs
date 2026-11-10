@@ -3,6 +3,7 @@
 
 use anyhow::Result;
 use fix::prelude::*;
+use hylo_core::collateral_ratio::CR;
 use hylo_core::earn_pool_math::lp_token_nav;
 use hylo_core::yields::{HarvestCache, YieldHarvestConfig};
 
@@ -56,7 +57,9 @@ fn exo_snapshot_stats(
     harvest: realized(&snapshot.harvest_cache, current_epoch)?,
     projected_inflow: projected_borrow_inflow(
       snapshot.levercoin_market_cap,
-      &snapshot.borrow_rate_config,
+      snapshot.collateral_ratio,
+      &snapshot.borrow_rate_curve_config,
+      snapshot.borrow_rate_fee,
     )?,
   })
 }
@@ -85,6 +88,7 @@ fn realized_yield_rate(
 /// Sum of projected next-epoch hyUSD inflows across LST positions.
 fn projected_lst_total(
   lst_positions: &[LstPosition],
+  collateral_ratio: CR,
   sol_usd_spot: UFix64<N9>,
   harvest_config: &YieldHarvestConfig,
 ) -> Result<UFix64<N6>> {
@@ -94,6 +98,7 @@ fn projected_lst_total(
       let inflow = projected_lst_inflow(
         position.sol_value,
         position.epoch_growth,
+        collateral_ratio,
         sol_usd_spot,
         harvest_config,
       )?;
@@ -146,6 +151,7 @@ pub fn compute_stats(inputs: &StatsInputs) -> Result<EarnPoolStats> {
     realized_yield_rate(&lst_harvest, &exo_stats, inputs.pool_balance)?;
   let projected_lst_inflow = projected_lst_total(
     &inputs.lst_positions,
+    inputs.lst_collateral_ratio,
     inputs.sol_usd_spot,
     &inputs.harvest_config,
   )?;
@@ -178,7 +184,7 @@ pub fn compute_stats(inputs: &StatsInputs) -> Result<EarnPoolStats> {
 #[cfg(test)]
 mod tests {
   use anchor_lang::prelude::Pubkey;
-  use hylo_core::borrow_rate::BorrowRateConfig;
+  use hylo_core::borrow_rate::BorrowRateCurveConfig;
   use hylo_core::yields::YieldHarvestConfig;
 
   use super::*;
@@ -199,10 +205,12 @@ mod tests {
     ExoSnapshot {
       collateral_mint: Pubkey::new_unique(),
       harvest_cache,
-      borrow_rate_config: BorrowRateConfig::new(
+      borrow_rate_curve_config: BorrowRateCurveConfig::new(
         UFix64::<N9>::new(384_620).into(),
-        UFix64::<N4>::new(500).into(),
+        UFix64::<N9>::new(1_648_352).into(),
       ),
+      borrow_rate_fee: UFix64::<N4>::new(500),
+      collateral_ratio: CR::Finite(UFix64::new(1_500_000_000)),
       levercoin_market_cap,
     }
   }
@@ -214,9 +222,10 @@ mod tests {
       shyusd_supply: UFix64::<N6>::new(950_000_000_000),
       lst_harvest_cache: cache(800, 1_000_000_000),
       harvest_config: YieldHarvestConfig {
-        allocation: UFix64::<N4>::new(10_000).into(),
+        ceil_mult: UFix64::<N9>::new(1_000_000_000).into(),
         fee: UFix64::<N4>::new(1_000).into(),
       },
+      lst_collateral_ratio: CR::Finite(UFix64::new(1_500_000_000)),
       lst_positions: vec![LstPosition {
         sol_value: UFix64::<N9>::new(100_000_000_000_000),
         epoch_growth: UFix64::<N9>::new(500_000),
@@ -229,6 +238,16 @@ mod tests {
       outstanding_drawdown: UFix64::zero(),
       epochs_per_year: 182.0,
     }
+  }
+
+  #[test]
+  fn compute_stats_survives_sell_zone_cr() -> Result<()> {
+    let mut input = inputs();
+    input.exo_snapshots[0].collateral_ratio =
+      CR::Finite(UFix64::new(1_200_000_000));
+    let stats = compute_stats(&input)?;
+    assert_eq!(stats.exo_stats[0].projected_inflow, UFix64::zero());
+    Ok(())
   }
 
   #[test]

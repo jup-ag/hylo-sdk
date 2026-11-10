@@ -17,6 +17,7 @@ anchor-lang.workspace = true
 anchor-spl.workspace = true
 anyhow.workspace = true
 bincode.workspace = true
+bytemuck.workspace = true
 hylo-core = { workspace = true, features = ["offchain"] }
 hylo-fix.workspace = true
 hylo-idl.workspace = true
